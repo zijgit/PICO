@@ -12,6 +12,7 @@ library(tidyverse)
 library(broom)
 library(patchwork)
 library(knitr)
+library(naniar)
 ```
 
 
@@ -20,7 +21,19 @@ pico <- read.table("data/allpico-dataexport.txt", header = TRUE,
                         stringsAsFactors = FALSE )
 ```
 
+```{r remove-NAs}
+pico[pico=="NaN"] <- NA
+```
+
+```{r convert-time}
+pico <- pico %>% 
+  unite("Date", c("Month", "Day", "Year"), sep = "/", remove = FALSE) %>% 
+  arrange(Days)
+```
+
 ```{r}
-view(pico)
+ggplot(data=pico, aes(x=Days, y= pHMEAN)) +
+  geom_point() +
+  labs(title = "pHMEAN Plotted against Days")
 ```
 

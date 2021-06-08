@@ -26,14 +26,65 @@ pico[pico=="NaN"] <- NA
 ```
 
 ```{r convert-time}
-pico <- pico %>% 
+pico1 <- pico %>% 
   unite("Date", c("Month", "Day", "Year"), sep = "/", remove = FALSE) %>% 
   arrange(Days)
 ```
 
 ```{r}
-ggplot(data=pico, aes(x=Days, y= pHMEAN)) +
+ggplot(data=pico1, aes(x=Days, y= pHMEAN)) +
   geom_point() +
   labs(title = "pHMEAN Plotted against Days")
 ```
+
+```{r calculations-min-ph}
+smallest_pHMEAN <- pico1 %>% 
+  filter(!is.na(pHMEAN))%>% 
+  select(pHMEAN,Date) %>% 
+  arrange(pHMEAN) %>% 
+  slice(1)
+smallest_pHMEAN
+```
+
+The smallest pH value was 9/20/2018 -- About a week after Hurricane Florence hit NC
+
+## All pH Recordings
+
+```{r}
+p1 <- ggplot(data=pico1, aes(x=Days, y= pHMEAN)) +
+  geom_point() +
+  labs(title = "pHMEAN vs. Days") +
+  scale_y_continuous(limits=c(7, 8.5))
+p2 <- ggplot(data=pico1, aes(x=Days, y= pHprobeMEAN)) +
+  geom_point() +
+  labs(title = "pHprobeMean vs. Days")
+p3 <- ggplot(data=pico1, aes(x=Days, y= pH25CMEAN)) +
+  geom_point() +
+  labs(title = "pH25CMEAN vs. Days") + 
+  scale_y_continuous(limits=c(7, 8.5))
+```
+
+```{r}
+p1+p3
+```
+```{r}
+p5 <- ggplot(data=pico1, aes(x = Days, y = OxygenMEAN)) +
+  geom_point() +
+  labs(title = "OxygenMEAN vs. Days") +
+  scale_y_continuous(limits=c(5, 11.5))
+
+p6 <- ggplot(data=pico1, aes(x = Days, y = OxygenProSoloMEAN)) +
+  geom_point() +
+  labs(title = "OxygenProSoloMEAN vs. Days") +
+  scale_y_continuous(limits=c(5, 11.5))
+
+p5+p6
+```
+
+```{r}
+(p1 + scale_y_continuous(limits=c(7.25, 8.5)))+(p5 + scale_y_continuous(limits=c(3, 13)))
+```
+
+The mean oxygen measured by ProODO appears to follow a similar pattern of peaks as the mean pH calculated using CO2SYS.
+
 

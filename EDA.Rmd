@@ -4,7 +4,7 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ```{r load-packages, warning = FALSE, message = FALSE}
@@ -13,6 +13,7 @@ library(broom)
 library(patchwork)
 library(knitr)
 library(naniar)
+library(GGally)
 ```
 
 
@@ -67,7 +68,7 @@ p3 <- ggplot(data=pico1, aes(x=Days, y= pH25CMEAN)) +
 ```{r}
 p1+p3
 ```
-```{r}
+```{r oxygen}
 p5 <- ggplot(data=pico1, aes(x = Days, y = OxygenMEAN)) +
   geom_point() +
   labs(title = "OxygenMEAN vs. Days") +
@@ -81,10 +82,65 @@ p6 <- ggplot(data=pico1, aes(x = Days, y = OxygenProSoloMEAN)) +
 p5+p6
 ```
 
+```{r oxygen-sat}
+p10 <- ggplot(data=pico1, aes(x = Days, y = OxygenSatProSoloMEAN)) +
+  geom_point() +
+  labs(title = "OxygenSatProSoloMEAN vs. Days")
+
+p11 <- ggplot(data=pico1, aes(x = Days, y = OxygenSaturationMEAN)) +
+  geom_point() +
+  labs(title = "OxygenSaturationMEAN vs. Days")
+
+p10+p11
+```
+```{r calculations-min-max-oxsat}
+small_large_oxygen_sat <- pico1 %>% 
+  filter(!is.na(OxygenSaturationMEAN))%>% 
+  select(OxygenSaturationMEAN,Date, OxygenMEAN, TemperatureMEAN) %>% 
+  arrange(OxygenSaturationMEAN) %>% 
+  slice(1, 649)
+small_large_oxygen_sat
+```
+Max mean oxygen saturation:  129.20% on 1/12/2020 -- cooler temp than min
+Min mean oxygen saturation: 75.95% on. 9/20/2018
+
 ```{r}
 (p1 + scale_y_continuous(limits=c(7.25, 8.5)))+(p5 + scale_y_continuous(limits=c(3, 13)))
 ```
 
 The mean oxygen measured by ProODO appears to follow a similar pattern of peaks as the mean pH calculated using CO2SYS.
 
+```{r}
+ggplot(data = pico1, aes(x = OxygenMEAN, y = pHMEAN)) +
+  geom_point() + 
+  labs(title = "pHMEAN vs. OxygenMEAN")
+```
 
+
+```{r}
+o_pH <- pico1 %>% 
+  select(OxygenMEAN, pHMEAN)
+
+ggcorr(o_pH, palette = "RdBu", label = TRUE)
+```
+
+There appears to be a pretty strong positive correlation between the mean oxygen and pH levels.
+
+```{r looking-at-temp}
+p7 <- ggplot(data=pico1, aes(x=Days, y= TemperatureMEAN)) +
+  geom_point() +
+  labs(title = "TemperatureMEAN vs. Days")
+p8 <- ggplot(data=pico1, aes(x=Days, y= TempSurfaceMEAN)) +
+  geom_point() +
+  labs(title = "TempSurfaceMEAN vs. Days")
+
+p7+p8
+```
+
+```{r}
+o_pH_temp <- pico1 %>% 
+  select(OxygenMEAN, pHMEAN, TemperatureMEAN)
+
+ggpairs(o_pH_temp, columns = 1:ncol(o_pH_temp), title = "",  
+  axisLabels = "show", columnLabels = colnames(o_pH_temp[]))
+```

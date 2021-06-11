@@ -15,6 +15,8 @@ library(patchwork)
 library(knitr)
 library(GGally)
 library(tseries)
+library(Kendall)
+library(ggplot2)
 ```
 
 
@@ -35,18 +37,23 @@ pico1 <- pico %>%
 
 ## Exploring pH
 
-```{r}
+```{r factor-NamedStorm}
 pico1$NamedStorm <- as.factor(pico1$NamedStorm)
 levels(pico1$NamedStorm) <- c("No", "Yes")
 ```
 
-```{r}
+```{r plotting-pH}
 ggplot(data=pico1, aes(x=Days, y= pHMEAN, color = NamedStorm)) +
   geom_point() +
   labs(title = "pHMEAN Plotted against Days")
 ```
 
 Lower pH values observed when there is a named storm -- is this because of the storm or just a coincidence because pH tends to lower in warmer seasons and storms happen more often in summer?
+
+```{r pH-model}
+pH_model <- lm(pHMEAN ~ Days, data = pico1)
+tidy(pH_model)
+```
 
 ```{r calculations-min-ph}
 smallest_pHMEAN <- pico1 %>% 
@@ -59,7 +66,7 @@ smallest_pHMEAN
 
 The smallest pH value was 9/20/2018 -- About a week after Hurricane Florence hit NC
 
-```{r}
+```{r plotting-various-pH}
 p1 <- ggplot(data=pico1, aes(x=Days, y= pHMEAN)) +
   geom_point() +
   labs(title = "pHMEAN vs. Days") +
@@ -73,14 +80,14 @@ p3 <- ggplot(data=pico1, aes(x=Days, y= pH25CMEAN)) +
   scale_y_continuous(limits=c(7, 8.5))
 ```
 
-```{r}
+```{r display-pH-with-patchwork}
 p1+p3
 ```
 \newpage
 
 ## Exploring Oxygen
 
-```{r oxygen}
+```{r oxygen-plot}
 p5 <- ggplot(data=pico1, aes(x = Days, y = OxygenMEAN)) +
   geom_point() +
   labs(title = "OxygenMEAN vs. Days") +
@@ -94,17 +101,26 @@ p6 <- ggplot(data=pico1, aes(x = Days, y = OxygenProSoloMEAN)) +
 p5+p6
 ```
 
-```{r oxygen-sat}
+```{r oxygen-sat-plot}
 p10 <- ggplot(data=pico1, aes(x = Days, y = OxygenSatProSoloMEAN)) +
   geom_point() +
   labs(title = "OxygenSatProSoloMEAN vs. Days")
 
-p11 <- ggplot(data=pico1, aes(x = Days, y = OxygenSaturationMEAN)) +
+p11 <- ggplot(data=pico1, aes(x = Days, y = OxygenSaturationMEAN, color = NamedStorm)) +
   geom_point() +
   labs(title = "OxygenSaturationMEAN vs. Days")
 
 p10+p11
 ```
+
+```{r oxygen_sat_oxygen_temp}
+ggplot(pico1) +
+  geom_line(aes(y = TemperatureMEAN, x = Days),  size = 0.25) +
+  geom_line(aes(y = OxygenMEAN, x = Days), color = "#c13d75ff")  + 
+  geom_line(aes(y = OxygenSaturationMEAN, x = Days), color = "blue") +
+  labs(title = "Mean Oxygen and Oxygen Saturation Plotted Against Temp")
+```
+
 ```{r calculations-min-max-oxsat}
 small_large_oxygen_sat <- pico1 %>% 
   filter(!is.na(OxygenSaturationMEAN))%>% 
@@ -116,31 +132,139 @@ small_large_oxygen_sat
 Max mean oxygen saturation:  129.20% on 1/12/2020 -- cooler temp than min
 Min mean oxygen saturation: 75.95% on. 9/20/2018
 
+## Delta CO2
+
+```{r plot-deltaCO2}
+ggplot(data=pico1, aes(x = Days, y = deltaCO2, color = NamedStorm)) +
+  geom_point() +
+  labs(title = "DeltaCO2 vs. Days")
+```
+
+```{r calculations-max-DeltaCO2}
+largest_deltaCO2 <- pico1 %>% 
+  filter(!is.na(deltaCO2))%>% 
+  select(deltaCO2, Date) %>% 
+  arrange(desc(deltaCO2)) %>% 
+  slice(1)
+largest_deltaCO2
+```
+
+Maximum value happened right around Hurrricane Joaquin
+
+## Bacteria
+
+```{r plot-bacteriaMEAN}
+ggplot(data=pico1, aes(x = Days, y = bacteriaMEAN, color = NamedStorm)) +
+  geom_point() +
+  labs(title = "BacteriaMEAN vs. Days")
+```
+
+```{r calculations-max-bacteria}
+largest_bacteriaMEAN <- pico1 %>% 
+  filter(!is.na(bacteriaMEAN))%>% 
+  select(bacteriaMEAN, Date) %>% 
+  arrange(desc(bacteriaMEAN)) %>% 
+  slice(1)
+largest_bacteriaMEAN
+```
+
+```{r plot-bacteria-vs-temperature}
+p_temp <- ggplot(data=pico1, aes(x = TemperatureMEAN, y = bacteriaMEAN)) +
+            geom_point() +
+            labs(title = "BacteriaMEAN vs. TempMEAN") +
+            geom_abline(intercept = 1340430.7, slope = 100283.6, color = "red", size = 1.5)
+```
+
+```{r plot-bacteria-vs-salinity-display}
+p_salinity <- ggplot(data=pico1, aes(x = SalinityMEAN, y = bacteriaMEAN)) +
+                geom_point() +
+                labs(title = "BacteriaMEAN vs. SalinityMEAN")
+p_temp+p_salinity
+```
+
+```{r linear-model-bacteria-temp}
+bacteria_temp_model <- lm(bacteriaMEAN~TemperatureMEAN, data = pico1)
+tidy(bacteria_temp_model)
+```
+
+```{r linear-model-bacteria-salinity}
+bacteria_sal_model <- lm(bacteriaMEAN~SalinityMEAN, data = pico1)
+tidy(bacteria_sal_model)
+```
+
+```{r correlation-bac-sal-temp}
+temp_salinity <- pico1 %>% 
+  select(bacteriaMEAN, SalinityMEAN, TemperatureMEAN)
+
+ggcorr(temp_salinity, palette = "RdBu", label = TRUE)
+```
+
+The p-value for the linear regression shows that there is a relationship between mean bacteria and mean temperature, but there does not appear to be a strong correlation between the two
+
+```{r plot-bacteria-vs-pH}
+p_pH <- ggplot(data=pico1, aes(x = pHMEAN, y = bacteriaMEAN)) +
+                geom_point() +
+                labs(title = "BacteriaMEAN vs. pHMEAN") +
+                geom_abline(intercept = 64645987, slope = -7658991, color = "red", size = 1.5)
+```
+
+```{r linear-model-bacteria-pH}
+bacteria_ph_model <- lm(bacteriaMEAN~pHMEAN, data = pico1)
+tidy(bacteria_ph_model)
+```
+
+```{r linear-model-bacteria-oxygen}
+bacteria_oxygen_model <- lm(bacteriaMEAN~OxygenMEAN, data = pico1)
+tidy(bacteria_oxygen_model)
+```
+
+```{r plot-bacteria-oxygen-display}
+p_oxygen <- ggplot(data=pico1, aes(x=OxygenMEAN, y=bacteriaMEAN)) +
+              geom_point() +
+              labs(title = "BacteriaMEAN vs. OxygenMEAN") +
+              geom_abline(slope = -541933, intercept = 7384236, color = "red", size = 1.5)
+p_oxygen + p_pH
+```
+```{r correlation-bac-o-pH}
+o_pH_bacteria <- pico1 %>% 
+  select(bacteriaMEAN, OxygenMEAN, pHMEAN)
+
+ggcorr(o_pH_bacteria, palette = "RdBu", label = TRUE)
+```
+
+Again, there does not appear to be a strong correlation. between mean bacteria. and pH and oxygen, despite the p-values of the linear models suggesting otherwise
+
 \newpage
 
 ## Looking at pH alongside Oxygen
 
-```{r}
+```{r display-ph-oxygen}
 (p1 + scale_y_continuous(limits=c(7.25, 8.5)))+(p5 + scale_y_continuous(limits=c(3, 13)))
 ```
 
-```{r}
+```{r plot-o-on-ph}
 ggplot(pico1) +
   geom_line(aes(y = pHMEAN, x = Days),  size = 0.25) +
-  geom_line(aes(y = OxygenMEAN, x = Days), color = "#c13d75ff")  + 
+  geom_line(aes(y = OxygenMEAN, x = Days), color = "#c13d75ff")  +
   labs(title = "Mean Oxygen Plotted with Mean pH")
 ```
 
 The mean oxygen measured by ProODO appears to follow a similar pattern of peaks as the mean pH calculated using CO2SYS.
 
-```{r}
+```{r plot-ph-vs-oxygen}
 ggplot(data = pico1, aes(x = OxygenMEAN, y = pHMEAN)) +
   geom_point() + 
   labs(title = "pHMEAN vs. OxygenMEAN")
 ```
 
+```{r o-pH-model}
+o_pH_model <- lm(pHMEAN ~ OxygenMEAN, data = pico1)
+tidy(o_pH_model)
+```
 
-```{r}
+
+
+```{r correlation-o-pH}
 o_pH <- pico1 %>% 
   select(OxygenMEAN, pHMEAN)
 
@@ -161,7 +285,7 @@ p8 <- ggplot(data=pico1, aes(x=Days, y= TempSurfaceMEAN)) +
 p7+p8
 ```
 
-```{r}
+```{r ggpairs-o-ph-temp}
 o_pH_temp <- pico1 %>% 
   select(OxygenMEAN, pHMEAN, TemperatureMEAN)
 
@@ -181,23 +305,23 @@ full_pHMEAN <-  pico1 %>%
 ```
 
 
-```{r}
+```{r time-series-pHMEAN}
 pico1.ts <- ts(full_pHMEAN$pHMEAN, start = c(2010, 7), frequency = 52)
 ```
 
-```{r}
+```{r decomposed-ph-ts}
 pico1.Decomposed <- stl(pico1.ts, s.window = "periodic")
 plot(pico1.Decomposed)
 ```
 
-```{r}
+```{r changing-decomposed-dataframe}
 pico1_Components <- as.data.frame(pico1.Decomposed$time.series[,1:3])
 pico1_Components <- mutate(pico1_Components,
         Observed = full_pHMEAN$pHMEAN,     
         Days = full_pHMEAN$Days)
 ```
 
-```{r}
+```{r plotting-decomposed-ts}
 p_orig <- ggplot(pico1_Components) +
   geom_line(aes(y = Observed, x = Days),  size = 0.25) +
   geom_line(aes(y = trend, x = Days), color = "#c13d75ff") +
@@ -214,6 +338,12 @@ p_seasonal <- ggplot(pico1_Components) +
 p_orig+p_seasonal
 ```
 
+```{r mann-kendall-ph}
+SeasonalMannKendall(pico1.ts)
+```
+
+p-vale is. less. than 0.05, so we can reject the null hypothesis meaning that there is a trend
+
 ## Oxygen
 
 ```{r no-missing-o-values}
@@ -222,23 +352,23 @@ full_oMEAN <-  pico1 %>%
 ```
 
 
-```{r}
+```{r time-series-oxygenMEAN}
 pico1.ts_o <- ts(full_oMEAN$OxygenMEAN, start = c(2010, 7), frequency = 52)
 ```
 
-```{r}
+```{r decomposed-oxygen}
 pico1.Decomposed_o <- stl(pico1.ts_o, s.window = "periodic")
 plot(pico1.Decomposed_o)
 ```
 
-```{r}
+```{r oxygen-dataframe-edited}
 pico1_Components_o <- as.data.frame(pico1.Decomposed_o$time.series[,1:3])
 pico1_Components_o <- mutate(pico1_Components_o,
         Observed = full_oMEAN$OxygenMEAN,     
         Days = full_oMEAN$Days)
 ```
 
-```{r}
+```{r plotting-decomposed-oxygen}
 p_orig_o <- ggplot(pico1_Components_o) +
   geom_line(aes(y = Observed, x = Days),  size = 0.25) +
   geom_line(aes(y = trend, x = Days), color = "#c13d75ff") +
@@ -252,4 +382,8 @@ p_seasonal_o <- ggplot(pico1_Components_o) +
   labs(title = "Seasonal Cycle Mappping onto Data")
 
 p_orig_o+p_seasonal_o
+```
+
+```{r mann-kendall-o}
+SeasonalMannKendall(pico1.ts_o)
 ```

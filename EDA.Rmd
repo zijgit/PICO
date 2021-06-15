@@ -17,6 +17,10 @@ library(GGally)
 library(tseries)
 library(Kendall)
 library(ggplot2)
+library(forecast)
+library(lubridate)
+library(car)
+library(scales)
 ```
 
 
@@ -48,11 +52,32 @@ ggplot(data=pico1, aes(x=Days, y= pHMEAN, color = NamedStorm)) +
   labs(title = "pHMEAN Plotted against Days")
 ```
 
+```{r boxplot-pHMEAN}
+ggplot(data=pico1, aes(x = NamedStorm, y = pHMEAN)) +
+  geom_boxplot() +
+  labs(title = "pHMEAN vs. Days")
+```
+
+```{r t-test-phmean}
+t <- t.test(pico1$pHMEAN~pico1$NamedStorm)
+tidy(t) %>% 
+  select(p.value, statistic, conf.low, conf.high)
+  kable()
+```
+
+
+```{r plotting-pH-temp}
+ggplot(data=pico1, aes(x=TemperatureMEAN, y= pHMEAN, color = NamedStorm)) +
+  geom_point() +
+  labs(title = "pHMEAN Plotted against Temperature")
+```
+
 Lower pH values observed when there is a named storm -- is this because of the storm or just a coincidence because pH tends to lower in warmer seasons and storms happen more often in summer?
 
 ```{r pH-model}
 pH_model <- lm(pHMEAN ~ Days, data = pico1)
-tidy(pH_model)
+tidy(pH_model) %>% 
+  kable(caption = "Linear Model of pH and Days")
 ```
 
 ```{r calculations-min-ph}
@@ -80,9 +105,6 @@ p3 <- ggplot(data=pico1, aes(x=Days, y= pH25CMEAN)) +
   scale_y_continuous(limits=c(7, 8.5))
 ```
 
-```{r display-pH-with-patchwork}
-p1+p3
-```
 \newpage
 
 ## Exploring Oxygen
@@ -98,7 +120,7 @@ p6 <- ggplot(data=pico1, aes(x = Days, y = OxygenProSoloMEAN)) +
   labs(title = "OxygenProSoloMEAN vs. Days") +
   scale_y_continuous(limits=c(5, 11.5))
 
-p5+p6
+p5
 ```
 
 ```{r oxygen-sat-plot}
@@ -110,7 +132,7 @@ p11 <- ggplot(data=pico1, aes(x = Days, y = OxygenSaturationMEAN, color = NamedS
   geom_point() +
   labs(title = "OxygenSaturationMEAN vs. Days")
 
-p10+p11
+p11
 ```
 
 ```{r oxygen_sat_oxygen_temp}
@@ -140,6 +162,12 @@ ggplot(data=pico1, aes(x = Days, y = deltaCO2, color = NamedStorm)) +
   labs(title = "DeltaCO2 vs. Days")
 ```
 
+```{r boxplot-DeltaCO2}
+ggplot(data=pico1, aes(x = NamedStorm, y = deltaCO2)) +
+  geom_boxplot() +
+  labs(title = "DeltaCO2 vs. Days")
+```
+
 ```{r calculations-max-DeltaCO2}
 largest_deltaCO2 <- pico1 %>% 
   filter(!is.na(deltaCO2))%>% 
@@ -158,6 +186,7 @@ ggplot(data=pico1, aes(x = Days, y = bacteriaMEAN, color = NamedStorm)) +
   geom_point() +
   labs(title = "BacteriaMEAN vs. Days")
 ```
+
 
 ```{r calculations-max-bacteria}
 largest_bacteriaMEAN <- pico1 %>% 
@@ -184,12 +213,14 @@ p_temp+p_salinity
 
 ```{r linear-model-bacteria-temp}
 bacteria_temp_model <- lm(bacteriaMEAN~TemperatureMEAN, data = pico1)
-tidy(bacteria_temp_model)
+tidy(bacteria_temp_model) %>% 
+  kable(caption = "Linear Model of Bacteria and Temperature")
 ```
 
 ```{r linear-model-bacteria-salinity}
 bacteria_sal_model <- lm(bacteriaMEAN~SalinityMEAN, data = pico1)
-tidy(bacteria_sal_model)
+tidy(bacteria_sal_model) %>% 
+  kable(caption = "Linear Model of Bacteria and Salinity")
 ```
 
 ```{r correlation-bac-sal-temp}
@@ -210,12 +241,14 @@ p_pH <- ggplot(data=pico1, aes(x = pHMEAN, y = bacteriaMEAN)) +
 
 ```{r linear-model-bacteria-pH}
 bacteria_ph_model <- lm(bacteriaMEAN~pHMEAN, data = pico1)
-tidy(bacteria_ph_model)
+tidy(bacteria_ph_model) %>% 
+  kable(caption = "Linear Model of Bacteria and pH")
 ```
 
 ```{r linear-model-bacteria-oxygen}
 bacteria_oxygen_model <- lm(bacteriaMEAN~OxygenMEAN, data = pico1)
-tidy(bacteria_oxygen_model)
+tidy(bacteria_oxygen_model) %>% 
+  kable(caption = "Linear Model of Bacteria and Oxygen")
 ```
 
 ```{r plot-bacteria-oxygen-display}
@@ -259,7 +292,8 @@ ggplot(data = pico1, aes(x = OxygenMEAN, y = pHMEAN)) +
 
 ```{r o-pH-model}
 o_pH_model <- lm(pHMEAN ~ OxygenMEAN, data = pico1)
-tidy(o_pH_model)
+tidy(o_pH_model) %>% 
+  kable(caption = "Linear Model of pH and Oxygen")
 ```
 
 
@@ -339,10 +373,33 @@ p_orig+p_seasonal
 ```
 
 ```{r mann-kendall-ph}
-SeasonalMannKendall(pico1.ts)
+tidy(SeasonalMannKendall(pico1.ts)) %>% 
+  kable()
 ```
 
-p-vale is. less. than 0.05, so we can reject the null hypothesis meaning that there is a trend
+p-vale is less than 0.05, so we can reject the null hypothesis meaning that there is a trend
+
+```{r ACF_PACF_plots}
+TS_Plot <- 
+  ggplot(full_pHMEAN, aes(x=Days, y=pHMEAN)) +
+      geom_line()
+plot(TS_Plot)
+#ACF and PACF plots
+par(mfrow=c(1,2))
+ACF_Plot <- Acf(full_pHMEAN$pHMEAN, lag = 52, plot = TRUE)
+PACF_Plot <- Pacf(full_pHMEAN$pHMEAN, lag = 52)
+par(mfrow=c(1,1))
+```
+```{r removing_seasonality}
+aicsvalue <- function(p,q,P,Q) {
+  fit <- Arima(full_pHMEAN, order=c(p,1,q),seasonal=list(order=c(P,1,Q),period=52),
+                  lambda = "auto"
+              )
+  return(fit$aicc)
+}
+```
+
+
 
 ## Oxygen
 
@@ -350,7 +407,6 @@ p-vale is. less. than 0.05, so we can reject the null hypothesis meaning that th
 full_oMEAN <-  pico1 %>% 
   filter(!is.na(OxygenMEAN))
 ```
-
 
 ```{r time-series-oxygenMEAN}
 pico1.ts_o <- ts(full_oMEAN$OxygenMEAN, start = c(2010, 7), frequency = 52)
@@ -385,5 +441,7 @@ p_orig_o+p_seasonal_o
 ```
 
 ```{r mann-kendall-o}
-SeasonalMannKendall(pico1.ts_o)
+tidy(SeasonalMannKendall(pico1.ts_o)) %>% 
+  kable()
 ```
+

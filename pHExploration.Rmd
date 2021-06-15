@@ -1,0 +1,157 @@
+---
+title: "pHExploration"
+author: "Alexandra Lawrence"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r load-packages, warning = FALSE, message = FALSE}
+library(tidyverse)
+library(broom)
+library(patchwork)
+library(knitr)
+library(GGally)
+library(tseries)
+library(Kendall)
+library(ggplot2)
+library(forecast)
+library(lubridate)
+library(car)
+library(scales)
+```
+
+
+```{r load-data, message = FALSE}
+pico <- read.table("data/allpico-dataexport.txt", header = TRUE, 
+                        stringsAsFactors = FALSE )
+```
+
+```{r remove-NAs}
+pico[pico =="NaN"] <- NA
+```
+
+```{r convert-time}
+pico1 <- pico %>% 
+  unite("Date", c("Month", "Day", "Year"), sep = "/", remove = FALSE) %>% 
+  arrange(Days)
+```
+
+```{r factor-NamedStorm}
+pico1$NamedStorm <- as.factor(pico1$NamedStorm)
+levels(pico1$NamedStorm) <- c("No", "Yes")
+```
+
+```{r plotting-pH}
+ggplot(data=pico1, aes(x=Days, y= pHMEAN, color = NamedStorm)) +
+  geom_point() +
+  labs(title = "pHMEAN Plotted against Days")
+```
+
+```{r calculations-min-ph}
+smallest_pHMEAN <- pico1 %>% 
+  filter(!is.na(pHMEAN))%>% 
+  select(pHMEAN,Date) %>% 
+  arrange(pHMEAN) %>% 
+  slice(1)
+smallest_pHMEAN
+```
+
+The smallest pH value was 9/20/2018 -- About a week after Hurricane Florence hit NC
+
+```{r boxplot-pHMEAN}
+ggplot(data=pico1, aes(x = NamedStorm, y = pHMEAN)) +
+  geom_boxplot() +
+  labs(title = "pHMEAN vs. Days")
+```
+
+```{r}
+ p <- pairwise.wilcox.test(pico1$pHMEAN, pico1$NamedStorm, 
+                      paired = FALSE)
+tidy(p) %>% 
+  kable(caption = "Pairwise Wilcox Test")
+```
+
+```{r plotting-pH-temp}
+ggplot(data=pico1, aes(x=TemperatureMEAN, y= pHMEAN, color = NamedStorm)) +
+  geom_point() +
+  labs(title = "pHMEAN Plotted against Temperature")
+```
+
+Lower pH values observed when there is a named storm -- is this because of the storm or just a coincidence because pH tends to lower in warmer seasons and storms happen more often in summer?
+
+```{r pH-model}
+pH_model <- lm(pHMEAN ~ Days, data = pico1)
+tidy(pH_model) %>% 
+  kable(caption = "Linear Model of pH and Days")
+```
+
+## Time Series
+
+```{r no-missing-ph-values}
+full_pHMEAN <-  pico1 %>% 
+  filter(!is.na(pHMEAN))
+```
+
+```{r time-series-pHMEAN}
+pico1.ts <- ts(full_pHMEAN$pHMEAN, start = c(2010, 7), frequency = 52)
+```
+
+```{r decomposed-ph-ts}
+pico1.Decomposed <- stl(pico1.ts, s.window = "periodic")
+plot(pico1.Decomposed)
+```
+
+```{r changing-decomposed-dataframe}
+pico1_Components <- as.data.frame(pico1.Decomposed$time.series[,1:3])
+pico1_Components <- mutate(pico1_Components,
+        Observed = full_pHMEAN$pHMEAN,     
+        Days = full_pHMEAN$Days)
+```
+
+```{r plotting-decomposed-ts}
+p_orig <- ggplot(pico1_Components) +
+  geom_line(aes(y = Observed, x = Days),  size = 0.25) +
+  geom_line(aes(y = trend, x = Days), color = "#c13d75ff") +
+  ylab(expression("Mean pH calculated using CO2SYS")) + 
+  scale_y_continuous(limits=c(7, 8.5)) +
+  labs(title = "Trend Mapping onto Data")
+
+p_seasonal <- ggplot(pico1_Components) +
+  geom_line(aes(y = Observed, x = Days),  size = 0.25) +
+  geom_line(aes(y = seasonal, x = Days), color = "#c13d75ff") +
+  ylab(expression("Mean pH calculated using CO2SYS")) + 
+  labs(title = "Seasonal Cycle Mappping onto Data")
+
+p_orig+p_seasonal
+```
+
+```{r mann-kendall-ph}
+tidy(SeasonalMannKendall(pico1.ts)) %>% 
+  kable(caption = "Seasonal Mann Kendall test for pH")
+```
+
+p-vale is less than 0.05, so we can reject the null hypothesis -- There is a possible trend in the data
+
+```{r ACF_PACF_plots}
+TS_Plot <- 
+  ggplot(full_pHMEAN, aes(x=Days, y=pHMEAN)) +
+      geom_line()
+plot(TS_Plot)
+#ACF and PACF plots
+par(mfrow=c(1,2))
+ACF_Plot <- Acf(full_pHMEAN$pHMEAN, plot = TRUE)
+PACF_Plot <- Pacf(full_pHMEAN$pHMEAN)
+par(mfrow=c(1,1))
+```
+
+```{r arima}
+pH_arima <- auto.arima(pico1.ts)
+pH_arima
+```
+
+
+
+

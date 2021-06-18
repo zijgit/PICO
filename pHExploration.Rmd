@@ -19,8 +19,7 @@ library(Kendall)
 library(ggplot2)
 library(forecast)
 library(lubridate)
-library(car)
-library(scales)
+library(fpp)
 ```
 
 
@@ -33,9 +32,16 @@ pico <- read.table("data/allpico-dataexport.txt", header = TRUE,
 pico[pico =="NaN"] <- NA
 ```
 
-```{r convert-time}
+```{r}
 pico1 <- pico %>% 
-  unite("Date", c("Month", "Day", "Year"), sep = "/", remove = FALSE) %>% 
+  mutate(Month1 = ifelse(Month < 10, paste0("0", Month), Month)) %>% 
+  mutate(Day1 = ifelse(Day < 10, paste0("0", Day), Day))
+```
+
+
+```{r convert-time}
+pico1 <- pico1 %>% 
+  unite("Date", c("Year", "Month1", "Day1"), sep = "/", remove = FALSE) %>% 
   arrange(Days)
 ```
 
@@ -44,11 +50,37 @@ pico1$NamedStorm <- as.factor(pico1$NamedStorm)
 levels(pico1$NamedStorm) <- c("No", "Yes")
 ```
 
+```{r no-missing-ph-values}
+full_pHMEAN <-  pico1 %>% 
+  filter(!is.na(pHMEAN))
+```
+
+In order to understand the variable that I want to explore, I want to look at the distribution of pH along with any patterns it may follow over time.
+
+```{r plotting-pH-distribution}
+ggplot(data=pico1, aes(x=pHMEAN)) +
+  geom_histogram() +
+  labs(title = "Distribution of pHMEAN")
+```
+
+```{r sum-stats}
+sum_stats <- full_pHMEAN %>% 
+  summarize(Min = min(pHMEAN), Max = max(pHMEAN),
+            Mean = mean(pHMEAN), Median = median(pHMEAN),
+            Q1 = quantile(pHMEAN, c(.25)), Q3 = quantile(pHMEAN, c(.75)),
+            Standard_Deviation = sd(pHMEAN), IQR = IQR(pHMEAN))
+knitr::kable(sum_stats, digits = 3)
+```
+
+According to the histogram, pHMEAN appears to be bimodal and very slightly left-skewed. The average pH appears to be slightly basic, with a value of 8.002. The range of pH between the first and third quarters is 0.14. Additionally, on average, every value has about a 0.098 average distance from the mean.
+
 ```{r plotting-pH}
 ggplot(data=pico1, aes(x=Days, y= pHMEAN, color = NamedStorm)) +
   geom_point() +
   labs(title = "pHMEAN Plotted against Days")
 ```
+
+It is clear that the pH levels off of the coast vary throughout the year, with a higher pH in the colder months, and a lower pH value in the warmer months. Additionally, it looks as though the lowest value gets lower every year, but this will have to be examined in further detail. Values recorded during a named storm also appear to be on the smaller end, so correlations will be examined in greater detail.
 
 ```{r calculations-min-ph}
 smallest_pHMEAN <- pico1 %>% 
@@ -59,12 +91,12 @@ smallest_pHMEAN <- pico1 %>%
 smallest_pHMEAN
 ```
 
-The smallest pH value was 9/20/2018 -- About a week after Hurricane Florence hit NC
+The smallest pH value was recorded on 9/20/2018, which was about a week after Hurricane Florence hit North Carolina. Therefore, we will look into the influence of storms as well as how long these effects might last. However, is this because of the storm or just a coincidence because pH tends to lower in warmer seasons and storms happen more often in summer?
 
 ```{r boxplot-pHMEAN}
 ggplot(data=pico1, aes(x = NamedStorm, y = pHMEAN)) +
   geom_boxplot() +
-  labs(title = "pHMEAN vs. Days")
+  labs(title = "pHMEAN For Days With and Without Storms")
 ```
 
 ```{r}
@@ -74,29 +106,217 @@ tidy(p) %>%
   kable(caption = "Pairwise Wilcox Test")
 ```
 
+According to the boxplot and pairwise wilcox test, with a p-value of 0.00009, there is in fact a difference in the mean pH value between values recorded during a named storm and those recorded during typical weather.
+
+```{r temp-pH-corr}
+temp_pH <- full_pHMEAN %>% 
+  select(pHMEAN, TemperatureMEAN)
+
+ggcorr(temp_pH, palette = "RdBu", label = TRUE)
+```
+
 ```{r plotting-pH-temp}
 ggplot(data=pico1, aes(x=TemperatureMEAN, y= pHMEAN, color = NamedStorm)) +
   geom_point() +
   labs(title = "pHMEAN Plotted against Temperature")
 ```
 
-Lower pH values observed when there is a named storm -- is this because of the storm or just a coincidence because pH tends to lower in warmer seasons and storms happen more often in summer?
+There appears to be a somewhat negative linear relationship between temperature and pH, according to this plot. As the mean temperature increases, the mean pH decreases. This makes sense in the context of the data. Additionally, according to the correlation plot there is a relatively strong negative correlation between these two variables.
 
 ```{r pH-model}
-pH_model <- lm(pHMEAN ~ Days, data = pico1)
+pH_model <- lm(pHMEAN ~ TemperatureMEAN, data = pico1)
 tidy(pH_model) %>% 
-  kable(caption = "Linear Model of pH and Days")
+  kable(caption = "Linear Model of pH and Temperature")
 ```
+
+For every one degree increase in temperature, the pH is estimated to decrease by 0.0105 on average. The p-value is close to zero, meaning that there is a relationship between pH and temperature.
+
+```{r add-diff}
+full_pHMEAN <- full_pHMEAN %>% 
+  mutate(diff = pHMEAN -  mean(full_pHMEAN$pHMEAN))
+```
+
+```{r}
+ggplot(data = full_pHMEAN, aes(x = Days, y = diff, fill = NamedStorm)) +
+  geom_bar(stat ='identity', width=1.5)
+```
+
+```{r}
+full_pHMEAN %>% 
+  filter(diff > 0.175) %>% 
+  select(Date, pHMEAN, diff, NamedStorm) %>% 
+  arrange(Date)
+```
+
+```{r}
+full_pHMEAN %>% 
+  filter(diff < -0.15) %>% 
+  select(Date, pHMEAN, diff, NamedStorm) %>% 
+  arrange(Date)
+```
+
+
+```{r}
+graph_data1 <- full_pHMEAN %>%
+  filter(Days < 1992.94)
+```
+
+```{r}
+graph_data2 <- full_pHMEAN %>%
+  filter(Days >= 1992.94)
+```
+
+```{r}
+ggplot(data = graph_data1, aes(x = Days, y = diff, fill = NamedStorm)) +
+  geom_bar(stat ='identity', width=2)
+```
+
+```{r}
+ggplot(data = graph_data2, aes(x = Days, y = diff, fill = NamedStorm)) +
+  geom_bar(stat ='identity', width=2)
+```
+
+## Additional Variables
+
+```{r ph-deltaco2-corr}
+temp_delta <- full_pHMEAN %>% 
+  select(pHMEAN, deltaCO2)
+
+ggcorr(temp_delta, palette = "RdBu", label = TRUE)
+```
+
+```{r plot-deltaCO2-pH}
+ggplot(data=pico1, aes(x = deltaCO2, y = pHMEAN, color = NamedStorm)) +
+  geom_point() +
+  labs(title = "DeltaCO2 vs. pHMEAN")
+```
+
+There appears to be a negative linear relationship between water-atmospheric carbon dioxide and pH. As the water-atmospheric CO2 increases, the pH decreases. Additionally, there appear to be more named storms recorded at higher values of water-atmospheric CO2 increases. According to the correlation plot, there is a strong negative correlation between these two variables.
+
+```{r linear-model-deltaco2-phmean}
+deltaco2_ph_model <- lm(pHMEAN~deltaCO2, data = pico1)
+tidy(deltaco2_ph_model) %>% 
+  kable(caption = "Linear Model of pH and DeltaCO2")
+```
+
+For every 100 µatm increase in water-atmospheric carbon dioxide, the pH is estimated to decrease by 0.0854 on average. The p-value is close to zero, meaning there is a relationship between the two variables. 
+
+```{r calculations-max-DeltaCO2}
+largest_deltaCO2 <- pico1 %>% 
+  filter(!is.na(deltaCO2))%>% 
+  select(deltaCO2, Date) %>% 
+  arrange(desc(deltaCO2)) %>% 
+  slice(1)
+largest_deltaCO2
+```
+
+The largest value for deltaCO2 occurs on a day when the second smallest pH is recorded.
+
+```{r delta-mean}
+ggplot(data=pico1, aes(x = NamedStorm, y = deltaCO2)) +
+  geom_boxplot() +
+  labs(title = "Mean DeltaCO2 for Storms and Days without Storms")
+```
+
+```{r}
+ p <- pairwise.wilcox.test(pico1$deltaCO2, pico1$NamedStorm, 
+                      paired = FALSE)
+tidy(p) %>% 
+  kable(caption = "Pairwise Wilcox Test")
+```
+
+After examining the boxplot and administering a pairwise wilcox test, with a p-value of 0.0005, it is apparent that there is a difference in the mean water-atmospheric carbon dioxide for days with named stroms and days with typical weather.
+
+```{r ph-nh4-corr}
+nh4_ph <- full_pHMEAN %>% 
+  select(pHMEAN, NH4MEAN)
+
+ggcorr(nh4_ph, palette = "RdBu", label = TRUE)
+```
+
+```{r plot-nh4-pH}
+ggplot(data=pico1, aes(x = NH4MEAN, y = pHMEAN, color = NamedStorm)) +
+  geom_point() +
+  labs(title = "NH4MEAN vs. pHMEAN")
+```
+
+There does not appear to be a strong relationship between NH4 and pH. The correlation plot also displays a weak correlation between the two variables.
+
+```{r linear-model-nh4-phmean}
+NH4_ph_model <- lm(pHMEAN~NH4MEAN, data = pico1)
+tidy(NH4_ph_model) %>% 
+  kable(caption = "Linear Model of pH and NH4")
+```
+
+For every one nM increase in NH4, the pH decreases by -0.00008. While the small p-value suggests a relationship between the two variables, this may be a result of the influence from the outliers.
+
+```{r ph-nh4-mean}
+ggplot(data=pico1, aes(x = NamedStorm, y = NH4MEAN)) +
+  geom_boxplot() +
+  labs(title = "Mean NH4MEAN For Storms and Days without Storms")
+```
+
+```{r}
+ p <- pairwise.wilcox.test(pico1$NH4MEAN, pico1$NamedStorm, 
+                      paired = FALSE)
+tidy(p) %>% 
+  kable(caption = "Pairwise Wilcox Test")
+```
+
+According to the boxplot there looks like there is a difference in the mean NH4 for days with a named storm, however, the pairwise wilcox test fails to reject the hypothesis that there is no difference in means.
+
+## Multiple Linear Regression
+
+```{r}
+full_model_data <- pico1 %>% 
+  filter(!is.na(pHMEAN)) %>% 
+  filter(!is.na(TemperatureMEAN)) %>% 
+  filter(!is.na(deltaCO2)) %>% 
+  filter(!is.na(NH4MEAN))
+```
+
+In this linear model, I will include the temperature, named storm indicator, water-atmospheric carbon dioxide, and NH4 because each variable appears to have a relationship with pH. I will also include an interaction term between the storm indicator and each of the numeric variables because there is a difference in means for values recorded during a storm.
+
+```{r model}
+model1 <- lm(pHMEAN ~ NamedStorm + TemperatureMEAN + NamedStorm*TemperatureMEAN + deltaCO2 + 
+               deltaCO2*NamedStorm + NH4MEAN + NH4MEAN*NamedStorm, data = full_model_data)
+tidy(model1) %>% 
+  kable(caption = "Multiple Linear Regression Model for pH")
+```
+
+
+```{r int-model}
+model_int <- lm(pHMEAN ~ 1, data = full_model_data)
+```
+
+```{r backwards-selection, results = "hide"}
+reduced_model <- step(model1, model_int, direction = "backward")
+```
+
+Several variables have insignificant p-values in this model, so I will perform backwards selection in order to ensure that I get the most accurate results. This test will eliminate any unnecessary predictors, which is important as any model can get a high r-squared value with a lot of variables, even if many are not considered significant.  
+
+```{r}
+tidy(reduced_model) %>% 
+  kable(caption = "Reduced Model through backward Selection")
+```
+
+The reduced model only includes the named storm indicator, temperature, and water-atmospheric carbon dioxide. While temperature does not have a significant p-value, I will leave it in the model for the moment because of the results from exploratory data analysis. However, this may need to be investigated further. 
+
+```{r compare-models}
+glance(model1)%>%
+  select(adj.r.squared, AIC, BIC) %>% 
+  kable(digits=4, caption = "Model Selection Criteria for Full Model", col.names = c("Adjusted R Squared", "AIC", "BIC"))
+glance(reduced_model)%>%
+  select(adj.r.squared, AIC, BIC) %>% 
+  kable(digits=4, caption = "Model Selection Criteria for Reduced Model", col.names = c("Adjusted R Squared", "AIC", "BIC"))
+```
+
+The adjusted r-squared, AIC, and BIC values are similar for the full and reduced models. However, the reduced model has a slightly higher adjusted r-squared and lower AIC and BIC values, so I will choose this as the most accurate.
 
 ## Time Series
 
-```{r no-missing-ph-values}
-full_pHMEAN <-  pico1 %>% 
-  filter(!is.na(pHMEAN))
-```
-
 ```{r time-series-pHMEAN}
-pico1.ts <- ts(full_pHMEAN$pHMEAN, start = c(2010, 7), frequency = 52)
+pico1.ts <- ts(full_pHMEAN$pHMEAN, start = c(2010, 28), frequency = 52)
 ```
 
 ```{r decomposed-ph-ts}
@@ -130,17 +350,13 @@ p_orig+p_seasonal
 
 ```{r mann-kendall-ph}
 tidy(SeasonalMannKendall(pico1.ts)) %>% 
+  select(p.value, kendall_score, statistic) %>% 
   kable(caption = "Seasonal Mann Kendall test for pH")
 ```
 
-p-vale is less than 0.05, so we can reject the null hypothesis -- There is a possible trend in the data
+p-value is less than 0.05, so we can reject the null hypothesis -- There is a possible trend in the data
 
 ```{r ACF_PACF_plots}
-TS_Plot <- 
-  ggplot(full_pHMEAN, aes(x=Days, y=pHMEAN)) +
-      geom_line()
-plot(TS_Plot)
-#ACF and PACF plots
 par(mfrow=c(1,2))
 ACF_Plot <- Acf(full_pHMEAN$pHMEAN, plot = TRUE)
 PACF_Plot <- Pacf(full_pHMEAN$pHMEAN)
@@ -152,6 +368,47 @@ pH_arima <- auto.arima(pico1.ts)
 pH_arima
 ```
 
+```{r remove-seasonality}
+decompose_pico1 = decompose(pico1.ts, "additive")
+pico1_seasadj = pico1.ts - pico1_Components$seasonal
+plot(pico1_seasadj)
+```
 
+```{r}
+pico1_seasadj %>% ggtsdisplay()
+```
+
+```{r arima1}
+auto.arima(pico1_seasadj)
+```
+
+
+Test for Stationarity:
+
+```{r stationary-test}
+kpss.test(pico1_seasadj)
+```
+
+P-value is less than 0.05 -- could be significant and the data is stationary
+
+
+```{r box-test}
+(fit_minaicc <- Arima(pico1_seasadj, order=c(0,1,4),seasonal=list(order=c(0,0,2),period=52),
+                  lambda = "auto"
+              ))
+checkresiduals(fit_minaicc, lag=12)
+fit_minaicc$aicc
+```
+
+```{r}
+pico1_seasadj %>%
+  Arima(order=c(0,1,4),seasonal=list(order=c(0,0,2),period=52),
+                lambda = "auto"
+              ) %>%
+  forecast(h=520) %>%
+  autoplot() +
+    ylab("pHMEAN") + xlab("Year") +
+  autolayer(pico1_seasadj)
+```
 
 

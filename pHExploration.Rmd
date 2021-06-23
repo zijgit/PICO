@@ -28,6 +28,10 @@ pico <- read.table("data/allpico-dataexport.txt", header = TRUE,
                         stringsAsFactors = FALSE )
 ```
 
+```{r load-data2, message = FALSE}
+neuseRiver <- read_csv("data/NeuseRiverKinston.csv")
+```
+
 ```{r remove-NAs}
 pico[pico =="NaN"] <- NA
 ```
@@ -41,9 +45,14 @@ pico1 <- pico %>%
 
 ```{r convert-time}
 pico1 <- pico1 %>% 
-  unite("Date", c("Year", "Month1", "Day1"), sep = "/", remove = FALSE) %>% 
+  unite("Date", c("Month1", "Day1", "Year"), sep = "/", remove = FALSE) %>% 
   arrange(Days)
 ```
+
+```{r}
+pico2 <- left_join(pico1, neuseRiver)
+```
+
 
 ```{r factor-NamedStorm}
 pico1$NamedStorm <- as.factor(pico1$NamedStorm)
@@ -54,6 +63,7 @@ levels(pico1$NamedStorm) <- c("No", "Yes")
 full_pHMEAN <-  pico1 %>% 
   filter(!is.na(pHMEAN))
 ```
+
 
 In order to understand the variable that I want to explore, I want to look at the distribution of pH along with any patterns it may follow over time.
 
@@ -313,6 +323,14 @@ glance(reduced_model)%>%
 
 The adjusted r-squared, AIC, and BIC values are similar for the full and reduced models. However, the reduced model has a slightly higher adjusted r-squared and lower AIC and BIC values, so I will choose this as the most accurate.
 
+## Checking Storm Frequency
+
+```{r}
+##summarise(pico1) %>% 
+  ##count(NamedStorm)
+```
+
+
 ## Time Series
 
 ```{r time-series-pHMEAN}
@@ -405,7 +423,7 @@ pico1_seasadj %>%
   Arima(order=c(0,1,4),seasonal=list(order=c(0,0,2),period=52),
                 lambda = "auto"
               ) %>%
-  forecast(h=520) %>%
+  forecast(h=300) %>%
   autoplot() +
     ylab("pHMEAN") + xlab("Year") +
   autolayer(pico1_seasadj)

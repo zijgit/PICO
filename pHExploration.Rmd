@@ -20,6 +20,7 @@ library(ggplot2)
 library(forecast)
 library(lubridate)
 library(fpp)
+library(trend)
 ```
 
 
@@ -30,6 +31,7 @@ pico <- read.table("data/allpico-dataexport.txt", header = TRUE,
 
 ```{r load-data2, message = FALSE}
 neuseRiver <- read_csv("data/NeuseRiverKinston.csv")
+fallsLake <- read_csv("data/FallsLake.csv")
 ```
 
 ```{r remove-NAs}
@@ -51,12 +53,22 @@ pico1 <- pico1 %>%
 
 ```{r}
 pico2 <- left_join(pico1, neuseRiver)
+pico2 <- left_join(pico2, fallsLake)
+view(pico2)
+```
+
+```{r convert-time2}
+pico1 <- pico1 %>% 
+  unite("Date", c("Year", "Month1", "Day1"), sep = "/", remove = FALSE) %>% 
+  arrange(Days)
 ```
 
 
 ```{r factor-NamedStorm}
 pico1$NamedStorm <- as.factor(pico1$NamedStorm)
 levels(pico1$NamedStorm) <- c("No", "Yes")
+pico2$NamedStorm <- as.factor(pico2$NamedStorm)
+levels(pico2$NamedStorm) <- c("No", "Yes")
 ```
 
 ```{r no-missing-ph-values}
@@ -64,6 +76,8 @@ full_pHMEAN <-  pico1 %>%
   filter(!is.na(pHMEAN))
 ```
 
+
+## Exploring pH
 
 In order to understand the variable that I want to explore, I want to look at the distribution of pH along with any patterns it may follow over time.
 
@@ -103,10 +117,16 @@ smallest_pHMEAN
 
 The smallest pH value was recorded on 9/20/2018, which was about a week after Hurricane Florence hit North Carolina. Therefore, we will look into the influence of storms as well as how long these effects might last. However, is this because of the storm or just a coincidence because pH tends to lower in warmer seasons and storms happen more often in summer?
 
+```{r welch-t-test}
+ttest<-t.test(pHMEAN ~ NamedStorm, data=full_pHMEAN)
+ttest
+```
+
+
 ```{r boxplot-pHMEAN}
 ggplot(data=pico1, aes(x = NamedStorm, y = pHMEAN)) +
   geom_boxplot() +
-  labs(title = "pHMEAN For Days With and Without Storms")
+  labs(title = "Recorded pH With and Without Storms")
 ```
 
 ```{r}
@@ -185,6 +205,188 @@ ggplot(data = graph_data1, aes(x = Days, y = diff, fill = NamedStorm)) +
 ggplot(data = graph_data2, aes(x = Days, y = diff, fill = NamedStorm)) +
   geom_bar(stat ='identity', width=2)
 ```
+
+## Dissolved Inorganic Carban
+
+```{r dic-visualization}
+ggplot(data = pico1, aes(y = DICMEAN, x = Days, color = NamedStorm)) +
+  geom_point() +
+  labs(title = "Mean DIC Over Time")
+```
+
+Dissolved inorganic carbon appears to have a less prominent seasonal trend
+
+```{r calculations-min-dic}
+smallest_DICMEAN <- pico1 %>% 
+  filter(!is.na(DICMEAN))%>% 
+  select(DICMEAN,Date) %>% 
+  arrange(DICMEAN) %>% 
+  slice(1)
+smallest_DICMEAN
+```
+
+The smallest dissolved inorganic carbon recording occurred during Hurricane Florence
+
+```{r difference-means}
+full_DICMEAN <- pico1 %>% 
+  filter(!is.na(DICMEAN))
+ggplot(data = full_DICMEAN, aes(x = NamedStorm, y = DICMEAN)) +
+  geom_boxplot() +
+  labs(title = "Difference in Mean DIC")
+```
+
+```{r dic-t-test}
+dicDiff<-t.test(DICMEAN ~ NamedStorm, data=full_DICMEAN)
+tidy(dicDiff)
+```
+
+While the boxplots show a difference in means between storms, the p-value is not significant, indicating that there is not a difference in the mean DIC when there is a storm.
+
+```{r DIC-pH}
+ggplot(data = pico1, aes(y = pHMEAN, x = DICMEAN)) +
+  geom_point() +
+  labs(title = " Relationship between DIC and pH") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r corr-dic-ph}
+ph_dic <- full_pHMEAN %>% 
+  select(pHMEAN, DICMEAN)
+
+ggcorr(ph_dic, palette = "RdBu", label = TRUE)
+```
+
+There appears to be a slight positive correlation between the two variables
+
+## DIC Time Series
+
+```{r timeseries-dic}
+dic.ts <- ts(full_DICMEAN$DICMEAN, start = c(2010, 28), frequency = 52)
+```
+
+```{r dic-decomposed}
+dic.Decomposed <- stl(dic.ts, s.window = "periodic")
+plot(dic.Decomposed)
+```
+
+```{r changing-decomposed-dataframe-dic}
+dic_Components <- as.data.frame(dic.Decomposed$time.series[,1:3])
+dic_Components <- mutate(dic_Components,
+        Observed = full_DICMEAN$DICMEAN,     
+        Days = full_DICMEAN$Days)
+```
+
+```{r plotting-decomposed-ts-dic}
+p_orig1 <- ggplot(dic_Components) +
+  geom_line(aes(y = Observed, x = Days),  size = 0.25) +
+  geom_line(aes(y = trend, x = Days), color = "#c13d75ff") +
+  ylab(expression("Mean DIC")) +
+  labs(title = "Trend Mapping onto Data")
+
+p_seasonal1 <- ggplot(dic_Components) +
+  geom_line(aes(y = Observed, x = Days),  size = 0.25) +
+  geom_line(aes(y = seasonal, x = Days), color = "#c13d75ff") +
+  ylab(expression("Mean DIC")) + 
+  labs(title = "Seasonal Cycle Mappping onto Data")
+
+p_orig1+p_seasonal1
+```
+
+```{r test-for-trend-dic}
+tidy(SeasonalMannKendall(dic.ts)) %>% 
+  select(p.value, kendall_score, statistic) %>% 
+  kable(caption = "Seasonal Mann Kendall test for pH")
+trend::smk.test(dic.ts)
+```
+```{r acf-pacf-plots}
+par(mfrow=c(1,2))
+ACF_Plot <- Acf(full_DICMEAN$DICMEAN, plot = TRUE)
+PACF_Plot <- Pacf(full_DICMEAN$DICMEAN)
+par(mfrow=c(1,1))
+```
+
+```{r remove-seasonality-dic}
+decompose_dic = decompose(dic.ts, "additive")
+dic_seasadj = dic.ts - dic_Components$seasonal
+plot(dic_seasadj)
+```
+
+```{r ggts-dic-seasadj}
+dic_seasadj %>% ggtsdisplay()
+```
+
+```{r arima-dic}
+dic_arima <- auto.arima(dic_seasadj)
+dic_arima
+```
+
+```{r box-test-dic}
+(fit_minaicc <- Arima(dic_seasadj, order=c(2,1,3),seasonal=list(order=c(0,0,1),period=52),
+                  lambda = "auto"
+              ))
+checkresiduals(fit_minaicc, lag=12)
+fit_minaicc$aicc
+```
+
+```{r forecast-dic}
+dic_seasadj %>%
+  Arima(order=c(2,1,3),seasonal=list(order=c(0,0,1),period=52),
+                lambda = "auto"
+              ) %>%
+  forecast(h=300) %>%
+  autoplot() +
+    ylab("DICMEAN") + xlab("Year") +
+  autolayer(dic_seasadj)
+```
+
+This model appears to forecast a slight decrease in dissolved inorganic carbon
+
+## River Gage
+
+```{r visualizingNeuse}
+ggplot(data=pico2, aes(y=NRKGageHeightMean, x = Days, color = NamedStorm)) +
+  geom_point() +
+  labs(title = "River Gage Height for Neuse River Over Time")
+```
+
+```{r visualizingNeusepH}
+ggplot(data=pico2, aes(x=NRKGageHeightMean, y = pHMEAN, color = NamedStorm)) +
+  geom_point() +
+  labs(title = "Relationship Between Neuse Gage Height and pH")
+```
+
+```{r NRK-pH-corr}
+NRK_pH <- pico2 %>% 
+  filter(!is.na(pHMEAN)) %>% 
+  select(pHMEAN, NRKGageHeightMean)
+
+ggcorr(NRK_pH, palette = "RdBu", label = TRUE)
+```
+
+There is only a very weak negative correlation between the Neuse River gage height at Kinston, NC and the pH recorded off of Pivers Island.
+
+```{r fallsLake}
+ggplot(data=pico2, aes(y=FLGageHeightMean, x = Days, color = NamedStorm)) +
+  geom_point() +
+  labs(title = "River Gage Height for Falls Lake Over Time")
+```
+
+```{r fallsLakepH}
+ggplot(data=pico2, aes(x=FLGageHeightMean, y = pHMEAN, color = NamedStorm)) +
+  geom_point() +
+  labs(title = "Relationship Between Falls Gage Height and pH")
+```
+
+
+```{r FL-pH-corr}
+FL_pH <- pico2 %>% 
+  filter(!is.na(pHMEAN)) %>% 
+  select(pHMEAN, FLGageHeightMean)
+
+ggcorr(FL_pH, palette = "RdBu", label = TRUE)
+```
+
+While slightly stronger between the correlation between the Neuse River and pH, there is only a weak negative correlation between the Falls Lake gage height and the pH recorded off of Pivers Island.
 
 ## Additional Variables
 
@@ -325,13 +527,23 @@ The adjusted r-squared, AIC, and BIC values are similar for the full and reduced
 
 ## Checking Storm Frequency
 
-```{r}
-##summarise(pico1) %>% 
-  ##count(NamedStorm)
+```{r stormsByYear}
+pico1 %>% 
+  group_by(Year) %>% 
+  count(NamedStorm)
+```
+
+```{r stormByYear}
+pico_all_storms <- pico1 %>% 
+  filter(NamedStorm == "Yes") %>% 
+  group_by(Year) %>% 
+  count(NamedStorm)
+ggplot(data = pico_all_storms, aes(x = Year, y = n)) +
+  geom_point()
 ```
 
 
-## Time Series
+## pH Time Series
 
 ```{r time-series-pHMEAN}
 pico1.ts <- ts(full_pHMEAN$pHMEAN, start = c(2010, 28), frequency = 52)
@@ -370,6 +582,7 @@ p_orig+p_seasonal
 tidy(SeasonalMannKendall(pico1.ts)) %>% 
   select(p.value, kendall_score, statistic) %>% 
   kable(caption = "Seasonal Mann Kendall test for pH")
+trend::smk.test(pico1.ts)
 ```
 
 p-value is less than 0.05, so we can reject the null hypothesis -- There is a possible trend in the data
@@ -392,23 +605,35 @@ pico1_seasadj = pico1.ts - pico1_Components$seasonal
 plot(pico1_seasadj)
 ```
 
-```{r}
+```{r acf-and-pacf-ggts}
 pico1_seasadj %>% ggtsdisplay()
-```
-
-```{r arima1}
-auto.arima(pico1_seasadj)
 ```
 
 
 Test for Stationarity:
 
 ```{r stationary-test}
+adf.test(pico1_seasadj)
 kpss.test(pico1_seasadj)
 ```
 
-P-value is less than 0.05 -- could be significant and the data is stationary
+Conflicting conclusions for the two tests, so I will first-difference the time series to see if that will create stationarity
 
+```{r differencing}
+pico1_seasadj_diff <- diff(pico1_seasadj, differences = 1)
+```
+
+```{r stationary-test-differenced}
+adf.test(pico1_seasadj_diff)
+kpss.test(pico1_seasadj_diff)
+```
+
+Because the p-value for the KPSS is larger than an alpha value of 0.05, the null hypothesis cannot be rejected. However, we can reject the null hypothesis for the ADF test. Therefore, it can now be concluded that the time series is stationary.
+
+
+```{r arima1}
+auto.arima(pico1_seasadj)
+```
 
 ```{r box-test}
 (fit_minaicc <- Arima(pico1_seasadj, order=c(0,1,4),seasonal=list(order=c(0,0,2),period=52),
@@ -418,7 +643,8 @@ checkresiduals(fit_minaicc, lag=12)
 fit_minaicc$aicc
 ```
 
-```{r}
+
+```{r ph-forecast}
 pico1_seasadj %>%
   Arima(order=c(0,1,4),seasonal=list(order=c(0,0,2),period=52),
                 lambda = "auto"
@@ -428,5 +654,88 @@ pico1_seasadj %>%
     ylab("pHMEAN") + xlab("Year") +
   autolayer(pico1_seasadj)
 ```
+
+## River Data Time Series
+
+### Neuse River
+
+```{r neuseriverts}
+full_neuse <- pico2 %>% 
+  filter(!is.na(NRKGageHeightMean))
+
+neuse.ts <- ts(full_neuse$NRKGageHeightMean, start = c(2010, 28), frequency = 52)
+plot(neuse.ts)
+```
+
+```{r decomposed-neuse-ts}
+neuse.Decomposed <- stl(neuse.ts, s.window = "periodic")
+plot(neuse.Decomposed)
+```
+
+```{r changing-decomposed-dataframe2}
+neuse_Components <- as.data.frame(neuse.Decomposed$time.series[,1:3])
+neuse_Components <- mutate(neuse_Components,
+        Observed = full_neuse$NRKGageHeightMean,     
+        Days = full_neuse$Days)
+```
+
+```{r stationary-test2}
+adf.test(neuse.ts)
+kpss.test(neuse.ts)
+```
+
+Neuse River gage height is stationary. However, it appears as though there may be seasonality, so I will remove that before looking at the correlation.
+
+```{r remove-seasonality-neuse}
+decompose_neuse = decompose(neuse.ts, "additive")
+neuse_seasadj = neuse.ts - neuse_Components$seasonal
+plot(neuse_seasadj)
+```
+
+```{r laggedCorrelation}
+ccf_vals <- ccf(neuse_seasadj, pico1_seasadj) 
+ccf_vals
+```
+
+### Falls Lake
+
+```{r fallslakets}
+full_falls <- pico2 %>% 
+  filter(!is.na(FLGageHeightMean))
+
+falls.ts <- ts(full_falls$FLGageHeightMean, start = c(2010, 28), frequency = 52)
+plot(falls.ts)
+```
+
+```{r decomposed-falls-ts}
+falls.Decomposed <- stl(falls.ts, s.window = "periodic")
+plot(falls.Decomposed)
+```
+
+```{r stationary-test3}
+PP.test(falls.ts, lshort = TRUE)
+kpss.test(falls.ts)
+```
+
+```{r changing-decomposed-dataframe3}
+falls_Components <- as.data.frame(falls.Decomposed$time.series[,1:3])
+falls_Components <- mutate(falls_Components,
+        Observed = full_falls$FLGageHeightMean,     
+        Days = full_falls$Days)
+```
+
+```{r remove-seasonality2}
+decompose_falls = decompose(falls.ts, "additive")
+falls_seasadj = falls.ts - falls_Components$seasonal
+plot(falls_seasadj)
+```
+
+```{r laggedCorrelation2}
+ccf_vals <- ccf(falls_seasadj, pico1_seasadj) 
+ccf_vals
+```
+
+
+
 
 

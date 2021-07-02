@@ -1,0 +1,114 @@
+---
+title: "StormExamination"
+author: "Alexandra Lawrence"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r load-packages, warning = FALSE, message = FALSE}
+library(tidyverse)
+library(broom)
+library(patchwork)
+library(knitr)
+library(GGally)
+library(tseries)
+library(Kendall)
+library(ggplot2)
+library(forecast)
+library(lubridate)
+library(fpp)
+library(trend)
+```
+
+```{r load-data, message = FALSE}
+pico <- read.table("data/allpico-dataexport.txt", header = TRUE, 
+                        stringsAsFactors = FALSE )
+```
+
+```{r remove-NAs}
+pico[pico =="NaN"] <- NA
+```
+
+```{r}
+pico1 <- pico %>% 
+  mutate(Month1 = ifelse(Month < 10, paste0("0", Month), Month)) %>% 
+  mutate(Day1 = ifelse(Day < 10, paste0("0", Day), Day))
+```
+
+```{r convert-time}
+pico1 <- pico1 %>% 
+  unite("Date", c("Month1", "Day1", "Year"), sep = "/", remove = FALSE) %>% 
+  arrange(Days)
+```
+
+```{r convert-time2}
+pico1 <- pico1 %>% 
+  unite("Date", c("Year", "Month1", "Day1"), sep = "/", remove = FALSE) %>% 
+  arrange(Days)
+```
+
+```{r factor-NamedStorm}
+pico1$NamedStorm <- as.factor(pico1$NamedStorm)
+levels(pico1$NamedStorm) <- c("No", "Yes")
+```
+
+## Closer Look at Measurements After Storms
+
+```{r pH-dic-after-florence}
+pH_dic_post_florence <- pico1 %>% 
+  select(Date, pHMEAN, DICMEAN, NamedStorm) %>% 
+  filter(Date > "2018/09/13" & Date < "2018/10/30")
+pH_dic_post_florence
+```
+```{r september-frame-ph}
+september <- pico1 %>% 
+  filter(Month == "9") %>% 
+  filter(!is.na(pHMEAN))
+mean(september$pHMEAN)
+```
+
+```{r october-frame-ph}
+october <- pico1 %>% 
+  filter(Month == "10") %>% 
+  filter(!is.na(pHMEAN))
+mean(october$pHMEAN)
+```
+
+```{r plot-ph-post-florence}
+ggplot(data = pH_dic_post_florence, aes(x = Date, y = pHMEAN, color = NamedStorm)) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  geom_hline(yintercept = 7.905, linetype='dashed', col = 'black') +
+  geom_hline(yintercept = 7.968201, linetype='solid', col = 'black')
+```
+
+The mean pH value for September is around 7.905, and the mean pH value for October is around 7.97. I have added a dashed line representing September's average and a solid line representing October's average on the plot of the daily recorded pH values for the 36 days recorded after Hurricane Florence. According to this plot, it takes about five days for the pH to rise back to approximately the average level. On October 11th, Hurricane Michael hit the Carolinas as a tropical storm. However, the pH appears to remain steady for four days before dipping slightly for four days and rebounding to the October's average.
+
+```{r september-frame-dic}
+september <- pico1 %>% 
+  filter(Month == "9") %>% 
+  filter(!is.na(DICMEAN))
+median(september$DICMEAN)
+```
+
+```{r october-frame-dic}
+october <- pico1 %>% 
+  filter(Month == "10") %>% 
+  filter(!is.na(DICMEAN))
+median(october$DICMEAN)
+```
+
+```{r plot-dic-post-florence}
+ggplot(data = pH_dic_post_florence, aes(x = Date, y = DICMEAN, color = NamedStorm)) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  geom_hline(yintercept = 1957.096, linetype='dashed', col = 'black') +
+  geom_hline(yintercept = 1966.7, linetype='solid', col = 'black')
+```
+
+Because DIC appears to be much more left skewed for recordings taken in September and October, I have used the median value to best approximate the average. The dashed line represents the September's median of about 1957.1 and the solid line represents October's median, around 1966.7. After Hurricane Florence hits, it takes seventeen days to return to the median value for September. After Hurricane Michael hits the Carolinas as a tropical storm, the DIC levels remain constant for around five daysm dip below the median for five days, and return to the line.
+
+

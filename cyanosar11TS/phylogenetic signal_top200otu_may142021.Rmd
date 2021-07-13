@@ -1,0 +1,296 @@
+---
+title: "Phylogenetic signal all asv"
+author: "Medy Mu"
+date: "5/14/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(picante)
+library(dplyr)
+library(NST)
+library("adegenet")
+library(ape)
+library(stats)
+library("RColorBrewer")
+library("gplots")
+library(vegan)
+library(seqinr)
+```
+
+```{r}
+## create a function that calculate the niche difference
+dniche<-function(env,comm,method=c("ab.overlap","niche.value","prefer.overlap"),
+                 nworker=4,memory.G=50,out.dist=FALSE,bigmemo=TRUE,nd.wd=getwd(),
+                 nd.spname.file="nd.names.csv",detail.file="ND.res.rda")
+{
+  #source(paste(code.wd,"/match.name.r",sep = ""))
+  checksamp=match.name(name.check = rownames(env),rn.list = list(env=env,comm=comm))
+  env=checksamp$env
+  comm=checksamp$comm
+  envnum=ncol(env)
+  spname=colnames(comm)
+  if(is.null(colnames(env))){colnames(env)=paste0("env",1:ncol(env))}
+  if(is.null(nd.wd)){nd.wd=getwd()}
+  
+  res=list()
+  res$bigmemo=bigmemo
+  res$nd=list()
+  if(bigmemo)
+  {
+    requireNamespace("bigmemory")
+    res$nd.wd=nd.wd
+    res$names=spname
+    utils::write.csv(data.frame(names=spname),file = paste0(nd.wd,"/",nd.spname.file))
+    ndbig=list()
+    for(j in 1:ncol(env))
+    {
+      ndbig[[j]] = bigmemory::big.matrix(nrow = length(spname), ncol = length(spname), type = "double",
+                                         backingfile = paste0(colnames(env)[j],".ND.bin"),
+                                         backingpath = nd.wd,
+                                         descriptorfile = paste0(colnames(env)[j],".ND.desc"),
+                                         shared = TRUE)
+      ndbig[[j]][]=0
+      res$nd[[j]]=paste0(colnames(env)[j],".ND.desc")
+    }
+  }
+  
+  if(method[1]=="niche.value")
+  {
+    comts<-(t(comm)/colSums(comm))
+    nv<-(as.matrix(comts) %*% as.matrix(env))
+    for(j in 1:ncol(env))
+    {
+      ndjm=as.matrix(stats::dist(nv[,j]))
+      if(bigmemo)
+      {
+        ndbig[[j]][] = ndjm/max(ndjm)
+      }else{
+        res$nd[[j]]=ndjm/max(ndjm)
+      }
+    }
+  }else if(method[1] %in% c("ab.overlap","prefer.overlap")){
+    if(method[1]=="ab.overlap")
+    {
+      comp=comm
+    }else{
+      comp=t(t(comm)/colSums(comm))
+    }
+    dens<-function(i,envj,comp)
+    {
+      stats::density(envj,weights = comp[,i],from=min(envj),to=max(envj))$y
+    }
+    dio<-function(i,den,res,j)
+    {
+      den.b<-den.max<-den[,(i+1):ncol(den),drop=FALSE]
+      den.a<-den.am<-matrix(den[,i],nrow=nrow(den),ncol=ncol(den.b))
+      den.max[den.max<den.a]=0
+      den.am[den.am<=den.b]=0
+      den.max=den.max+den.am
+      den.dif=abs(den.b-den.a)
+      ndio=colSums(den.dif)/colSums(den.max)
+      if(res$bigmemo)
+      {
+        requireNamespace("bigmemory")
+        ndj=bigmemory::attach.big.matrix(dget(res$nd[[j]]))
+        ndj[i,i]=0
+        ndj[i,(i+1):ncol(den)]=ndio
+        ndj[(i+1):ncol(den),i]=ndio
+        out=i
+      }else{
+        out=rep(0,ncol(den))
+        out[(i+1):ncol(den)]=ndio
+      }
+      out
+    }
+    
+    requireNamespace("parallel")
+    if(.Platform$OS.type=="windows")
+    {
+      if(utils::memory.limit()<memory.G*1024)
+      {
+        memotry=try(utils::memory.limit(size=memory.G*1024),silent = TRUE)
+        if(class(memotry)=="try-error"){warning(memotry[1])}
+      }
+    }
+    
+    for(j in 1:envnum)
+    {
+      dens1=stats::density(env[,j],weights = comp[,1],from=min(env[,j]),to=max(env[,j]))
+      den1=data.frame(dens1$y)
+      rownames(den1)<-dens1$x
+      if(nworker==1)
+      {
+        message("Now computing density model. j=",j," in ",envnum,". begin at ", date(),". Please wait...")
+        den<-lapply(2:ncol(comm),dens,envj=env[,j],comp=comp)
+      }else{
+        c1<-parallel::makeCluster(nworker,type="PSOCK")
+        message("Now parallel computing density model. j=",j," in ",envnum,". begin at ", date(),". Please wait...")
+        den<-parallel::parLapply(c1,2:ncol(comm),dens,envj=env[,j],comp=comp)
+        parallel::stopCluster(c1)
+      }
+      
+      den=matrix(unlist(den),nrow=length(den[[1]]))
+      den=as.matrix(cbind(den1,den))
+      gc()
+      
+      if(nworker==1)
+      {
+        message("Now computing niche distance. j=",j," in ",envnum,". begin at ", date(),". Please wait...")
+        dis<-lapply(c0,1:(ncol(den)-1),dio,den=den,res=res,j=j)
+      }else{
+        c0<-parallel::makeCluster(nworker,type="PSOCK")
+        message("Now parallel computing niche distance. j=",j," in ",envnum,". begin at ", date(),". Please wait...")
+        dis<-parallel::parLapply(c0,1:(ncol(den)-1),dio,den=den,res=res,j=j)
+        parallel::stopCluster(c0)
+      }
+      if(!bigmemo)
+      {
+        dis=data.frame(matrix(unlist(dis),nrow=length(dis[[1]])))
+        dis=cbind(dis,rep(0,ncol(comm)))
+        dis=dis+t(dis)
+        colnames(dis)<-rownames(dis)<-spname
+        if(out.dist){dis=stats::as.dist(dis)}
+        res$nd[[j]]=dis
+      }
+    }
+  }
+  names(res$nd)=colnames(env)
+  res$method=method[1]
+  if(bigmemo){if(!is.null(detail.file)){save(res,file = paste0(nd.wd,"/",detail.file))}}
+  res
+}
+```
+
+
+```{r}
+## load all OTU DNA fasta file
+all_otu_fasta <- read.fasta(file = "~/Downloads/PIDwholefract_otus97num.fasta")
+```
+
+```{r}
+## load top 200 most abundant OTU
+top200_otu <- read.csv("~/Downloads/Top200 OTU_may202021.csv")
+
+## make OTU_ID as rownames
+rownames(top200_otu)<- top200_otu$OTU_ID 
+```
+
+```{r}
+## delete the OTU_ID column
+top200_otu <- top200_otu[, - c(1)]
+```
+
+```{r}
+## transpose top200_otu matrix (row = sample ID, column = OTU_ID)
+top200_otu <- t(top200_otu)
+```
+
+```{r}
+## keep the top 200 abundance otu only in the fasta file
+all_otu_fasta <- all_otu_fasta[names(all_otu_fasta) %in% colnames(top200_otu)]
+```
+
+```{r}
+## load environmental data
+environmental_data <- read.csv("~/Downloads/ENvironmental data.csv")
+```
+
+```{r}
+## load temperature only dataset
+temp_top200_otu <- read.csv("~/Downloads/temp_data_top200otu.csv")
+
+## make Sample_ID as rownames
+rownames(temp_top200_otu) <- temp_top200_otu$Sample_ID
+```
+
+```{r}
+## delete the Sample_ID column
+temp_top200_otu <- subset(temp_top200_otu, select = -c(1))
+```
+
+```{r}
+## calculate niche difference
+niche.dif <- dniche(env = temp_top200_otu, comm = top200_otu, method = "niche.value",nworker = 1,out.dist=FALSE,bigmemo=FALSE,nd.wd = NULL)
+```
+
+
+```{r}
+## save nd in niche.dif as dataframe
+niche_dif <- data.frame(niche.dif $ nd)
+```
+
+```{r}
+## re-formatting the column names of niche_dif (get rid of Temp.)
+colnames(niche_dif) <- substring(colnames(niche_dif),6)
+```
+
+```{r}
+## create a function that convert RNA to DNA (may skip this step if your dataset is already in DNA format)
+RNA2DNA<-function(file=NULL,out=paste(file,".dna",sep="")){
+  library(Biostrings)
+  sequences<-readRNAStringSet(file)
+  writeXStringSet(DNAStringSet(sequences),filepath=out)}
+
+```
+
+```{r}
+## create a output file in DNA format
+RNA2DNA(file= "~/Downloads/top200_otu_may212021_DEH.fasta")
+```
+
+```{r}
+## load top 200 otu fasta file
+dna_top200_otu <- read.dna(file = "~/Downloads/top200_otu_may212021_DEH.fasta", format = "fasta")
+```
+
+```{r}
+## visualize the sequences just to check if it is in DNA format
+as.character(dna_top200_otu)
+```
+
+```{r}
+## calculate genetic distance betwen each ASV using TN93 model
+dna_dist<- dist.dna(dna_top200_otu, model = "TN93")
+```
+
+```{r}
+## convert genetic distance into a dataframe
+dna_dist_matrix <- as.data.frame(as.matrix(dna_dist))
+```
+
+```{r}
+## visualize genetic distance matrix
+dna_graph <- as.data.frame(as.matrix(dna_dist))
+table.paint(dna_graph, cleg = 0, clabel.row=0.5, clabel.col=0.5)
+```
+
+```{r}
+## compute the mantel test 
+dna_temp_top200_otu <- mantel(dna_dist, niche_dif, method = "spearman", permutations = 9999, na.rm = TRUE)
+```
+
+```{r}
+## get the info for the mantel test
+dna_temp_top200_otu
+```
+
+```{r}
+## get the mantel correlogram between genetic distance and niche difference in top 200 otu
+
+top200otu_mgram <- mantel.correlog(niche_dif, dna_dist_matrix, cutoff=TRUE, nperm=999, mult="holm")
+```
+
+```{r}
+## plot the mantel correlogram
+plot(top200otu_mgram, alpha=0.05)
+```
+
+ phy)
+```
+

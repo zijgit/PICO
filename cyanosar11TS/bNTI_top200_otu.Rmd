@@ -1,0 +1,219 @@
+---
+title: "bNTI_otu"
+author: "Medy Mu"
+date: "5/27/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(picante)
+library(dplyr)
+library(ggplot2)
+```
+
+```{r}
+## load the top 200 most abundance OTU
+## make OTU_ID the rownames for better visualization
+top200_otu <- read.csv("~/Downloads/Top200 OTU_may202021.csv")
+rownames(top200_otu)<- top200_otu$OTU_ID 
+```
+
+```{r}
+## delete the OTU_ID column
+top200_otu <- top200_otu[, - c(1)]
+```
+
+```{r}
+## transpose top200_otu matrix (row = PID#, column = OTU_ID)
+top200_otu <- t(top200_otu)
+```
+
+```{r}
+dim(top200_otu); # this gives the dimensions
+top200_otu[1:5,1:5]; # this gives a look at the first 5 rows and columns
+```
+
+```{r}
+## load the phylogenetic tree of top 200 OTU
+phylo = read.tree("~/Downloads/top200_otu_may212021_deh_phy_phyml/top200_otu_may212021_deh_phy_phyml_tree.txt");
+phylo; # a summary of the phylogeny
+plot.phylo(phylo,typ="fan"); # a quick plot
+```
+
+```{r}
+## compare taxa present in phylogenies with top 200 community, prune and sort the two kinds of data to match one another for subsequent analysis
+match.phylo.otu = match.phylo.data(phylo, t(top200_otu));
+str(match.phylo.otu);
+```
+
+```{r}
+## calculate the weighted beta MNTD and generate a csv output file
+beta.mntd.weighted = as.matrix(comdistnt(t(match.phylo.otu$data),cophenetic(match.phylo.otu$phy),abundance.weighted=T));
+dim(beta.mntd.weighted); # this gives the dimensions
+beta.mntd.weighted[1:5,1:5]; # this gives a look at the first 5 rows and columns
+write.csv(beta.mntd.weighted,'betaMNTD_weighted.csv',quote=F);
+
+identical(colnames(match.phylo.otu$data),colnames(beta.mntd.weighted)); # just a check, should be TRUE
+identical(colnames(match.phylo.otu$data),rownames(beta.mntd.weighted)); # just a check, should be TRUE
+
+```
+
+```{r}
+## calculate weighted beta NTI and generate a histogram of beta NTI values
+beta.reps = 999; # number of randomizations
+
+rand.weighted.bMNTD.comp = array(c(-999),dim=c(ncol(match.phylo.otu$data),ncol(match.phylo.otu$data),beta.reps));
+dim(rand.weighted.bMNTD.comp);
+
+for (rep in 1:beta.reps) {
+  
+  rand.weighted.bMNTD.comp[,,rep] = as.matrix(comdistnt(t(match.phylo.otu$data),taxaShuffle(cophenetic(match.phylo.otu$phy)),abundance.weighted=T,exclude.conspecifics = F));
+  
+  print(c(date(),rep));
+  
+}
+
+weighted.bNTI = matrix(c(NA),nrow=ncol(match.phylo.otu$data),ncol=ncol(match.phylo.otu$data));
+dim(weighted.bNTI);
+
+for (columns in 1:(ncol(match.phylo.otu$data)-1)) {
+  for (rows in (columns+1):ncol(match.phylo.otu$data)) {
+    
+    rand.vals = rand.weighted.bMNTD.comp[rows,columns,];
+    weighted.bNTI[rows,columns] = (beta.mntd.weighted[rows,columns] - mean(rand.vals)) / sd(rand.vals);
+    rm("rand.vals");
+    
+  };
+};
+
+rownames(weighted.bNTI) = colnames(match.phylo.otu$data);
+colnames(weighted.bNTI) = colnames(match.phylo.otu$data);
+weighted.bNTI;
+write.csv(weighted.bNTI,"weighted_bNTI.csv",quote=F);
+
+pdf("weighted_bNTI_Histogram.pdf")
+  hist(weighted.bNTI)
+dev.off()
+
+```
+
+```{r}
+## make weighted_bNTI a data frame for better visualization
+weighted_bNTI <- data.frame(weighted.bNTI)
+```
+
+```{r}
+## load environmental data with PICO# matching to week number
+week_number <- read.csv("~/Downloads/envweekly_disturbance.csv")
+```
+
+```{r}
+## add "PID" string to every cell in PICONUmber column
+week_number$PICONumber <- paste("PID", week_number$PICONumber, sep = "")
+```
+
+```{r}
+## get the first none NA value of each column and save it to time_series
+time_series <- list()
+for (i in 1:ncol(weighted_bNTI)) {
+  new <- first(na.omit(weighted_bNTI[,i]))
+  time_series[[colnames(weighted_bNTI[i])]]<- new
+}
+```
+
+```{r}
+## make time_series a data frame for better visualization
+time_series <- as.data.frame(time_series) 
+```
+
+```{r}
+## name the row as bNTI
+rownames(time_series) <- c("bNTI")
+```
+
+```{r}
+## transpose time_series (rows = PICO#, column = bNTI)
+time_series <- t(time_series)
+```
+
+```{r}
+## make PICO# the rownames
+time_series <- data.frame(PICONumber = row.names(time_series), time_series)
+```
+
+```{r}
+## merge the week_number with time_series
+time_series <- merge(time_series, week_number, by = "PICONumber" )
+```
+
+```{r}
+## select Week (week number) and move to the first column
+time_series <- time_series %>%
+  select("Week", everything())
+```
+
+```{r}
+## make PICONumber the rownames
+rownames(time_series) <- time_series$PICONumber
+```
+
+```{r}
+## keep only the first 3 columns in the dataframe
+time_series <- subset(time_series, select = -c(4:33))
+```
+
+```{r}
+## save the sample ID that is over one week interval
+row_names_time_series_to_remove <- c("PID137", "PID253", "PID306")
+time_series_highlight <- time_series[(rownames(time_series)) %in% row_names_time_series_to_remove, ] ## for later visualization  
+```
+
+```{r}
+## plot beta NTI value against week number
+## highlight the week number/sample ID that is over one week inverval
+ggplot(data = time_series, aes(x = Week, y = bNTI)) +
+  geom_point() +
+  geom_line() +
+  geom_text(aes(label = ifelse(Week == "11" | Week == "40" | Week == "80", 
+                               as.character(Week), "")), nudge_x = 4, color = "red") +
+  geom_point(data = time_series_highlight, aes(x = Week, y = bNTI), color = "red", size = 2 ) +
+  labs(x = "Week Number",
+       y = "beta NTI",
+       title = "beta NTI vs week number") 
+```
+
+```{r}
+## manually filter out the sample ID that is over one week interval
+time_series <- time_series[!(rownames(time_series)) %in% row_names_time_series_to_remove, ]
+```
+
+```{r}
+## move PICONumber up one row to match PICO# with week number
+time_series['PICONumber']<- c(time_series['PICONumber'][2:147,], rep(NA, 1))
+```
+
+```{r}
+significance_level = 2
+```
+
+```{r}
+## plot OTU beta NTI against week number 
+## highlight the sample ID that's above significance level
+ggplot(data = time_series, aes(x = Week, y = bNTI)) +
+  geom_point() +
+  geom_line() +
+  geom_hline(yintercept = 2, color = "red", linetype = "dotted") +
+  geom_text(aes(label = ifelse(bNTI >significance_level, 
+                               as.character(PICONumber), "")),
+            color = "red", 
+            nudge_x = ifelse(time_series$PICONumber == "PID134", 10, 0),
+            nudge_y = ifelse(time_series$PICONumber == "PID134",-0.1, 0.2)) +
+  labs(x = "Week Number",
+       y = "beta NTI",
+       title = "OTU beta NTI vs week number")
+```
+

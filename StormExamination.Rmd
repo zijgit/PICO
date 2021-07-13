@@ -96,7 +96,7 @@ full_DICMEAN <-  pico1 %>%
 
 # Precipitation in Carteret County
 
-In order to measure the precipitation, I am using the precipitation data from the NOAA for Carteret County. This data includes recordings from multiple stations per day, and I will be using a variable I created to take the average of each station.
+In order to measure precipitation, I am using the precipitation data from the NOAA for Carteret County. This data includes recordings from multiple stations per day, and I will be using a variable I created which takes the average of each station.
 
 ```{r visualizing-distribution}
 ggplot(data = weather1, aes(x = PRCPMEAN)) +
@@ -120,7 +120,7 @@ ggplot(data = pico_storm, aes(x = Days, y = PRCPMEAN, color = NamedStorm)) +
 The mean precipitation also does not appear to be seasonal. Additionally, when looking at the rain data printed by day, it is apparent that the day when storms are recorded in the pico dataset might not be the day that the storm actually hit, making it more difficult to look at the relationship between precipitation and pH
 
 ```{r ph-rain}
-ggplot(data = pico_storm, aes(x = PRCPMEAN, y = pHMEAN, color = NamedStorm)) +
+phplot <- ggplot(data = pico_storm, aes(x = PRCPMEAN, y = pHMEAN, color = NamedStorm)) +
   geom_point()
 ```
 
@@ -128,11 +128,14 @@ ggplot(data = pico_storm, aes(x = PRCPMEAN, y = pHMEAN, color = NamedStorm)) +
 ph_rain <- pico_storm %>% 
   select(pHMEAN, PRCPMEAN)
 
-ggcorr(ph_rain, palette = "RdBu", label = TRUE)
+phcorr <- ggcorr(ph_rain, palette = "RdBu", label = TRUE)
+phplot+phcorr
 ```
 
+According to this plot, there does not appear to be a linear relationship between the precipitation and pH recording. Additionally there is only a very weak, negative correlation between pH and precipitation.
+
 ```{r dic-rain}
-ggplot(data = pico_storm, aes(x = PRCPMEAN, y = DICMEAN, color = NamedStorm)) +
+p <- ggplot(data = pico_storm, aes(x = PRCPMEAN, y = DICMEAN, color = NamedStorm)) +
   geom_point()
 ```
 
@@ -140,8 +143,12 @@ ggplot(data = pico_storm, aes(x = PRCPMEAN, y = DICMEAN, color = NamedStorm)) +
 dic_rain <- pico_storm %>% 
   select(DICMEAN, PRCPMEAN)
 
-ggcorr(dic_rain, palette = "RdBu", label = TRUE)
+g <- ggcorr(dic_rain, palette = "RdBu", label = TRUE)
+
+p+g
 ```
+
+There does not appear to be a linear relationship between precipitation and DIC. Additionally, there is no correlation between precipitation and DIC.
 
 ## Lagged Correlation
 
@@ -198,17 +205,21 @@ adf.test(prcp.ts)
 kpss.test(prcp.ts)
 ```
 
-This data appears to be stationary
+According to these tests, PRCPMEAN is stationary
 
 ```{r laggedCorrelation}
 ccf_vals <- ccf(pico1_seasadj, prcp.ts) 
 ccf_vals
 ```
+This ACF plot shows the lagged correlations between precipitation and and pH. While the correlations are strongest for around -0.25 and 0.3, the correlations are still pretty insignificant, as these values are around -0.15 and 0.15.
 
 ```{r laggedCorrelation2}
 ccf_vals_2 <- ccf(dic_seasadj, prcp.ts) 
 ccf_vals_2
 ```
+This ACF plot displays the lagged correlations between precipitation and DIC. The positive correlations are strongest around -0.45 and -0.3, and the negative correlations are strongest around 0.275. However, similar to pH, the most extreme values are still around 0.10. This indicates that there is not much of a correlation.
+
+\newpage
 
 # Recorded Storms in Data
 
@@ -281,19 +292,50 @@ ggplot(data = pH_dic_post_irene, aes(x = Date, y = DICMEAN, color = NamedStorm))
 
 The dashed line represents the mean DIC for the month of August, about 2081.1. The recorded DIC appears to be slightly lower than the average for this recording, but it is back to the average by the next data collection.
 
-```{r pH-dic-after-x}
-pH_dic_post_x <- pico1 %>% 
+
+## Hurrricane Sandy
+
+```{r november-frame-ph, results = "hide"}
+november <- pico1 %>% 
+  filter(Month == "11") %>% 
+  filter(!is.na(pHMEAN))
+mean(november$pHMEAN)
+```
+
+```{r november-frame-dic, results = "hide"}
+november <- pico1 %>% 
+  filter(Month == "11") %>% 
+  filter(!is.na(DICMEAN))
+mean(november$DICMEAN)
+```
+
+```{r pH-dic-after-sandy}
+pH_dic_post_sandy <- pico1 %>% 
   select(Date, pHMEAN, DICMEAN, NamedStorm) %>% 
   filter(Date > "2012/10/28" & Date < "2012/11/20")
 ```
 
-```{r plot-ph-post-x}
-ggplot(data = pH_dic_post_x, aes(x = Date, y = pHMEAN, color = NamedStorm)) +
+```{r plot-ph-post-sandy}
+ggplot(data = pH_dic_post_sandy, aes(x = Date, y = pHMEAN, color = NamedStorm)) +
   geom_point() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  geom_hline(yintercept = 7.968201, linetype='solid', col = 'black') +
-  labs(title = "pH Recorded after 2012/10/29")
+  geom_hline(yintercept = 7.968201, linetype='dashed', col = 'black') +
+  geom_hline(yintercept = 8.075622, linetype='solid', col = 'black') +
+  labs(title = "pH Recorded after Sandy")
 ```
+
+Surprisingly, the recorded pH for Hurricane Sandy is slightly above the average for October (about 7.968) However, it is lower than the mean for November (about 8.076). This could be caused by the fact that Sandy was further out to sea when it affected the North Carolina coast.
+
+```{r plot-dic-post-sandy}
+ggplot(data = pH_dic_post_sandy, aes(x = Date, y = DICMEAN, color = NamedStorm)) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  geom_hline(yintercept = 1966.7, linetype='dashed', col = 'black') +
+  geom_hline(yintercept = 2000.039, linetype='solid', col = 'black') +
+  labs(title = "DIC Recorded after Sandy")
+```
+
+The DIC is below October's average during the storm. However, it is back to above both October and November's averages after the storm. Again, this may be caused by the fact that Sandy was farther from the coast than other storms.
 
 ## Hurricane Florence (9/19/2018) and Tropical Storm Michael (10/11/2018)
 
@@ -326,7 +368,7 @@ ggplot(data = pH_dic_post_florence, aes(x = Date, y = pHMEAN, color = NamedStorm
   labs(title = "pH Recorded Daily for 36 Days after Hurricane Florence")
 ```
 
-The mean pH value for September is around 7.905, and the mean pH value for October is around 7.97. I have added a dashed line representing September's average and a solid line representing October's average on the plot of the daily recorded pH values for the 36 days recorded after Hurricane Florence. According to this plot, it takes about five days for the pH to rise back to approximately the average level. On October 11th, Hurricane Michael hit the Carolinas as a tropical storm. However, the pH appears to remain steady for four days before dipping slightly for four days and rebounding to the October's average.
+The mean pH value for September is around 7.905, and the mean pH value for October is around 7.97. I have added a dashed line representing September's average and a solid line representing October's average on the plot of the daily recorded pH values for the 36 days recorded after Hurricane Florence. According to this plot, it takes about five days for the pH to rise back to approximately the average level. On October 11th, Hurricane Michael hit the Carolinas as a tropical storm. However, the pH appears to remain steady for four days before dipping slightly for four days and rebounding to the October's average. This could be a late affect from the storm, or it could be caused by other factors such as the tide.
 
 ```{r september-frame-dic, results = "hide"}
 september <- pico1 %>% 
@@ -351,7 +393,7 @@ ggplot(data = pH_dic_post_florence, aes(x = Date, y = DICMEAN, color = NamedStor
   labs(title = "DIC Recorded for 36 Days after Hurricane Florence")
 ```
 
-Because DIC appears to be much more left skewed for recordings taken in September and October, I have used the median value to best approximate the average. The dashed line represents the September's median of about 1957.1 and the solid line represents October's median, around 1966.7. After Hurricane Florence hits, it takes seventeen days to return to the median value for September. After Hurricane Michael hits the Carolinas as a tropical storm, the DIC levels remain constant for around five daysm dip below the median for five days, and return to the line.
+Because DIC appears to be much more left skewed for recordings taken in September and October, I have used the median value to best approximate the average. The dashed line represents the September's median of about 1957.1 and the solid line represents October's median, around 1966.7. After Hurricane Florence hits, it takes seventeen days to return to the median value for September. After Hurricane Michael hits the Carolinas as a tropical storm, DIC levels remain constant for around five days before dipping below the median for five days, and returning to the line. Again this may be a result of the storm or other factors such as the tide.
 
 
 ## Hurricane Dorian

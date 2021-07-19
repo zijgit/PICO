@@ -10,6 +10,8 @@ knitr::opts_chunk$set(echo = FALSE)
 
 ```{r load-packages, warning = FALSE, message = FALSE}
 library(tidyverse)
+library(ggthemes)
+library(wesanderson)
 library(broom)
 library(patchwork)
 library(knitr)
@@ -76,6 +78,40 @@ full_pHMEAN <-  pico1 %>%
   filter(!is.na(pHMEAN))
 ```
 
+```{r theme}
+theme_Publication <- function(base_size=12, base_family="Helvetica") {
+      (theme_foundation(base_size=base_size, base_family=base_family)
+       + theme(plot.title = element_text(face = "bold",
+                                         size = rel(1.2), hjust = 0.5),
+               text = element_text(),
+               panel.background = element_rect(colour = NA),
+               plot.background = element_rect(colour = NA),
+               panel.border = element_rect(colour = NA),
+               axis.title = element_text(face = "bold",size = rel(1)),
+               axis.title.y = element_text(angle=90,vjust =2),
+               axis.title.x = element_text(vjust = -0.2),
+               axis.text = element_text(), 
+               axis.line = element_line(colour="black"),
+               axis.ticks = element_line(),
+               panel.grid.major = element_line(colour="#f0f0f0"),
+               panel.grid.minor = element_blank(),
+               legend.key = element_rect(colour = NA),
+               legend.position = "bottom",
+               legend.direction = "horizontal",
+               legend.key.size= unit(0.5, "cm"),
+               legend.margin = unit(0, "cm"),
+               legend.title = element_text(face="italic"),
+               plot.margin=unit(c(10,5,5,5),"mm"),
+               strip.background=element_rect(colour="#f0f0f0",fill="#f0f0f0"),
+               strip.text = element_text(face="bold")
+          ))
+      
+}
+
+
+pal <- wes_palette("Zissou1", 50, type = "continuous")
+```
+
 
 ## Exploring pH
 
@@ -84,7 +120,8 @@ In order to understand the variable that I want to explore, I want to look at th
 ```{r plotting-pH-distribution}
 ggplot(data=pico1, aes(x=pHMEAN)) +
   geom_histogram() +
-  labs(title = "Distribution of pHMEAN")
+  labs(title = "Distribution of pHMEAN") +
+  theme_Publication()
 ```
 
 ```{r sum-stats}
@@ -101,7 +138,8 @@ According to the histogram, pHMEAN appears to be bimodal and very slightly left-
 ```{r plotting-pH}
 ggplot(data=pico1, aes(x=Days, y= pHMEAN, color = NamedStorm)) +
   geom_point() +
-  labs(title = "pHMEAN Plotted against Days")
+  labs(title = "pHMEAN Plotted against Days") +
+  theme_Publication()
 ```
 
 It is clear that the pH levels off of the coast vary throughout the year, with a higher pH in the colder months, and a lower pH value in the warmer months. Additionally, it looks as though the lowest value gets lower every year, but this will have to be examined in further detail. Values recorded during a named storm also appear to be on the smaller end, so correlations will be examined in greater detail.
@@ -336,7 +374,8 @@ dic_seasadj %>%
   forecast(h=300) %>%
   autoplot() +
     ylab("DICMEAN") + xlab("Year") +
-  autolayer(dic_seasadj)
+  autolayer(dic_seasadj) +
+  theme_Publication()
 ```
 
 This model appears to forecast a slight decrease in dissolved inorganic carbon
@@ -652,7 +691,8 @@ pico1_seasadj %>%
   forecast(h=300) %>%
   autoplot() +
     ylab("pHMEAN") + xlab("Year") +
-  autolayer(pico1_seasadj)
+  autolayer(pico1_seasadj) +
+  theme_Publication()
 ```
 
 ## River Data Time Series

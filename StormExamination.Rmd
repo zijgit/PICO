@@ -1,5 +1,6 @@
 ---
 title: "StormExamination"
+author: "Alexandra Lawrence"
 output: pdf_document
 ---
 
@@ -38,7 +39,7 @@ weather1 <- weather %>%
 ```
 
 ```{r adding-storm-indicator}
-weather1 <- weather1 %>% 
+weather2 <- weather1 %>% 
   mutate(Florence = case_when(DATE == "2018-09-14" ~  "Yes")) 
 ##weather1$NamedStorm <- as.factor(weather1$NamedStorm)
 ##levels(weather1$NamedStorm) <- c("Yes", "No")
@@ -106,7 +107,7 @@ ggplot(data = weather1, aes(x = PRCPMEAN)) +
 The distribution for mean precipitation is right skewed with the majority of days having no precipitation.
 
 ```{r weather1-plot}
-ggplot(data = weather1, aes(x = DATE, y = PRCPMEAN, color = Florence)) +
+ggplot(data = weather2, aes(x = DATE, y = PRCPMEAN, color = Florence)) +
   geom_point()
 ```
 
@@ -218,6 +219,118 @@ ccf_vals_2 <- ccf(dic_seasadj, prcp.ts)
 ccf_vals_2
 ```
 This ACF plot displays the lagged correlations between precipitation and DIC. The positive correlations are strongest around -0.45 and -0.3, and the negative correlations are strongest around 0.275. However, similar to pH, the most extreme values are still around 0.10. This indicates that there is not much of a correlation.
+
+## Correlation With Predicted pH Values
+
+```{r smaller-pico-set}
+pico_ph_dic <- pico1 %>%
+  select(DATE, pHMEAN, DICMEAN, Month, Day)
+```
+
+```{r joining}
+all_rain <- left_join(weather1, pico_ph_dic)
+```
+
+```{r predicting-phsmall}
+predict_ph <- lm(pHMEAN ~ Month, data = all_rain)
+predict_dic <- lm(DICMEAN ~ Month, data = all_rain)
+```
+
+```{r data-for-extrapolation1}
+before_florence <- all_rain %>% 
+  filter(DATE > "2018-09-06" & DATE < "2018-09-14")
+```
+
+```{r data-for-interpolation}
+after_florence <- all_rain %>% 
+  filter(DATE > "2018-09-13" & DATE < "2018-10-25")
+```
+
+```{r data-for-extrapolation}
+florence <- all_rain %>% 
+  filter(DATE > "2018-09-06" & DATE < "2018-10-25")
+```
+
+```{r adding-missing-values-with-model}
+num <- 7
+for(x in 1:nrow(before_florence)){
+  if(is.na(florence[x, 3])){
+    pred<-predict(predict_ph, data.frame(Month = 9))
+    florence[x, 6] <- num
+    florence[x, 3] <- (pred)
+    florence[x, 5] <- 9}
+  num <- num + 1
+}
+for(x in 1:nrow(before_florence)){
+  if(is.na(florence[x, 4])){
+    pred1<-predict(predict_dic, data.frame(Month = 9))
+    florence[x, 4] <- (pred1)}
+}
+```
+
+```{r}
+day_inc <- 14
+for(x in (p+1):(p+(z-q))){
+  if(is.na(florence[x, 3])){
+  florence[x, 6] <- day_inc
+  florence[x, 5] <- 9
+  }
+  day_inc = day_inc + 1
+}
+```
+
+```{r}
+mlrmodel <- florence %>% 
+  filter(DATE > "2018-09-12" & DATE < "2018-09-20")
+```
+
+```{r}
+interpolationpH <- lm(pHMEAN ~ Day, data = mlrmodel)
+interpolationdic <- lm(DICMEAN ~ Day, data = mlrmodel)
+```
+
+```{r}
+for(x in (p+1):(p+(z-q))){
+  if(is.na(florence[x, 3])){
+  pred2<-predict(interpolationpH, data.frame(Day = florence[x, 6]))
+  florence[x, 3] <- pred2
+  pred3<-predict(interpolationdic, data.frame(Day = florence[x, 6]))
+  florence[x, 4] <- pred3
+  }
+}
+```
+
+
+```{r}
+september_rain <- all_rain %>% 
+  filter(Month == 9)
+ggplot(data = florence, aes(y = pHMEAN, x = DATE)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  geom_point()
+```
+
+```{r}
+predictedpH.ts <- ts(florence$pHMEAN, start = c(2018, 9), frequency = 365)
+```
+
+```{r}
+predicteddic.ts <- ts(florence$DICMEAN, start = c(2018, 9), frequency = 365)
+```
+
+```{r}
+predictedprecip.ts <- ts(florence$PRCPMEAN, start = c(2018, 9), frequency = 365)
+```
+
+```{r}
+ccf_vals <- ccf(predictedpH.ts, predictedprecip.ts) 
+ccf_vals
+```
+
+```{r}
+ccf_vals <- ccf(predicteddic.ts, predictedprecip.ts) 
+ccf_vals
+```
+
 
 \newpage
 

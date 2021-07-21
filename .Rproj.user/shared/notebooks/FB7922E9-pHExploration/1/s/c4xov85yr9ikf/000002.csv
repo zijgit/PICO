@@ -1,0 +1,4 @@
+"0","dic_Components <- as.data.frame(dic.Decomposed$time.series[,1:3])"
+"0","dic_Components <- mutate(dic_Components,"
+"0","        Observed = full_DICMEAN$DICMEAN,     "
+"0","        Days = full_DICMEAN$Days)"

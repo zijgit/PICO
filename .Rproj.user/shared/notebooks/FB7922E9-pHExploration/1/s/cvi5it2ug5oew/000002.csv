@@ -1,0 +1,2 @@
+"0","tidy(reduced_model) %>% "
+"0","  kable(caption = ""Reduced Model through backward Selection"")"

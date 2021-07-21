@@ -1,0 +1,6 @@
+"0","largest_bacteriaMEAN <- pico1 %>% "
+"0","  filter(!is.na(bacteriaMEAN))%>% "
+"0","  select(bacteriaMEAN, Date) %>% "
+"0","  arrange(desc(bacteriaMEAN)) %>% "
+"0","  slice(1)"
+"0","largest_bacteriaMEAN"

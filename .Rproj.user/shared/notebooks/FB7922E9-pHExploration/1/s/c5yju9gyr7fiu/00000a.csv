@@ -1,0 +1,5 @@
+"0","ggplot(data=pico1, aes(x=pHMEAN)) +"
+"0","  geom_histogram() +"
+"0","  labs(title = ""Distribution of pHMEAN"") +"
+"0","  theme_Publication()"
+"2","`legend.margin` must be specified using `margin()`. For the old behavior use legend.spacing"

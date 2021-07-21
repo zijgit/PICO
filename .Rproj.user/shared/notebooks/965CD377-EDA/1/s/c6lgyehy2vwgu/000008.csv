@@ -1,0 +1,5 @@
+"0","p_oxygen <- ggplot(data=pico1, aes(x=OxygenMEAN, y=bacteriaMEAN)) +"
+"0","              geom_point() +"
+"0","              labs(title = ""BacteriaMEAN vs. OxygenMEAN"") +"
+"0","              geom_abline(slope = -541933, intercept = 7384236, color = ""red"", size = 1.5)"
+"0","p_oxygen + p_pH"

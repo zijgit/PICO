@@ -1,0 +1,3 @@
+"0","weekly <- pico1 %>% "
+"0","  select(Date, Day, Month, Year, pHMEAN, DICMEAN, NamedStorm) %>% "
+"0","  filter(!is.na(Day))"

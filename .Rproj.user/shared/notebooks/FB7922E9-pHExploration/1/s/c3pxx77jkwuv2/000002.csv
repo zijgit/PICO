@@ -1,0 +1,5 @@
+"0","full_model_data <- pico1 %>% "
+"0","  filter(!is.na(pHMEAN)) %>% "
+"0","  filter(!is.na(TemperatureMEAN)) %>% "
+"0","  filter(!is.na(deltaCO2)) %>% "
+"0","  filter(!is.na(NH4MEAN))"

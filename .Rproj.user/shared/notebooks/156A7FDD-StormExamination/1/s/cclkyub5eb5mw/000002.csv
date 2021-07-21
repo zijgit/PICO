@@ -1,0 +1,8 @@
+"0","november <- pico1 %>% "
+"0","  filter(Month == ""11"") %>% "
+"0","  filter(!is.na(pHMEAN))"
+"0","mean(november$pHMEAN)"
+"1","[1]"
+"1"," 8.075622"
+"1","
+"

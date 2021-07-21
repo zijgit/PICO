@@ -1,0 +1,6 @@
+"0","largest_deltaCO2 <- pico1 %>% "
+"0","  filter(!is.na(deltaCO2))%>% "
+"0","  select(deltaCO2, Date) %>% "
+"0","  arrange(desc(deltaCO2)) %>% "
+"0","  slice(1)"
+"0","largest_deltaCO2"

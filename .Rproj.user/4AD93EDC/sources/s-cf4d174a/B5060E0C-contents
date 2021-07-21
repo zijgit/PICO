@@ -1,0 +1,26 @@
+---
+title: "EDA"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load-packages, warning = FALSE, message = FALSE}
+library(tidyverse)
+library(broom)
+library(patchwork)
+library(knitr)
+```
+
+
+```{r load-data, message = FALSE}
+pico <- read.table("data/allpico-dataexport.txt", header = TRUE, 
+                        stringsAsFactors = FALSE )
+```
+
+```{r}
+view(pico)
+```
+

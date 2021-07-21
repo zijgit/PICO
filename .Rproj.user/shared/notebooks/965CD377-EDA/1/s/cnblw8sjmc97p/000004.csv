@@ -1,0 +1,3 @@
+"0","bacteria_sal_model <- lm(bacteriaMEAN~SalinityMEAN, data = pico1)"
+"0","tidy(bacteria_sal_model) %>% "
+"0","  kable(caption = ""Linear Model of Bacteria and Salinity"")"

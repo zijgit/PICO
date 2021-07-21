@@ -1,0 +1,4 @@
+"0","weather2 <- weather1 %>% "
+"0","  mutate(Florence = case_when(DATE == ""2018-09-14"" ~  ""Yes"")) "
+"0","##weather1$NamedStorm <- as.factor(weather1$NamedStorm)"
+"0","##levels(weather1$NamedStorm) <- c(""Yes"", ""No"")"

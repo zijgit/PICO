@@ -1,0 +1,8 @@
+"0","p7 <- ggplot(data=pico1, aes(x=Days, y= TemperatureMEAN)) +"
+"0","  geom_point() +"
+"0","  labs(title = ""TemperatureMEAN vs. Days"")"
+"0","p8 <- ggplot(data=pico1, aes(x=Days, y= TempSurfaceMEAN)) +"
+"0","  geom_point() +"
+"0","  labs(title = ""TempSurfaceMEAN vs. Days"")"
+"0",""
+"0","p7+p8"

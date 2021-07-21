@@ -1,0 +1,3 @@
+"0","decompose_falls = decompose(falls.ts, ""additive"")"
+"0","falls_seasadj = falls.ts - falls_Components$seasonal"
+"0","plot(falls_seasadj)"

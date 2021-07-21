@@ -1,0 +1,1 @@
+"0","prcp.Decomposed <- stl(prcp.ts, s.window = ""periodic"")"

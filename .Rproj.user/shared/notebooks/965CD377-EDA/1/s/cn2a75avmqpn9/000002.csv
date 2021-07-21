@@ -1,0 +1,3 @@
+"0","pico1 <- pico %>% "
+"0","  unite(""Date"", c(""Month"", ""Day"", ""Year""), sep = ""/"", remove = FALSE) %>% "
+"0","  arrange(Days)"

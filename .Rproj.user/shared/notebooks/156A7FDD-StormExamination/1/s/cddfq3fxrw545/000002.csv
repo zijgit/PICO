@@ -1,0 +1,8 @@
+"0","september <- pico1 %>% "
+"0","  filter(Month == ""9"") %>% "
+"0","  filter(!is.na(DICMEAN))"
+"0","median(september$DICMEAN)"
+"1","[1]"
+"1"," 1957.096"
+"1","
+"

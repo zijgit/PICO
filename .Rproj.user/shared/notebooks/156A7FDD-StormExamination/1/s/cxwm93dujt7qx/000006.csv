@@ -1,0 +1,2 @@
+"0","pico_ph_dic <- pico1 %>%"
+"0","  select(DATE, pHMEAN, DICMEAN, Month, Day)"

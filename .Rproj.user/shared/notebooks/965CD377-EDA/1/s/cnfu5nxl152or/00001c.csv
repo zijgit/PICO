@@ -1,0 +1,2 @@
+"0","pico1.Decomposed <- stl(pico1.ts, s.window = ""periodic"")"
+"0","plot(pico1.Decomposed)"

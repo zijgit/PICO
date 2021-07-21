@@ -1,0 +1,6 @@
+"0","dic_rain <- pico_storm %>% "
+"0","  select(DICMEAN, PRCPMEAN)"
+"0",""
+"0","g <- ggcorr(dic_rain, palette = ""RdBu"", label = TRUE)"
+"0",""
+"0","p+g"

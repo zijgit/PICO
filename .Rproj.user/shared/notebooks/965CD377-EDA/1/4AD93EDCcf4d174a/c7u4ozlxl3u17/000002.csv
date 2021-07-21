@@ -1,0 +1,3 @@
+"0","bacteria_oxygen_model <- lm(bacteriaMEAN~OxygenMEAN, data = pico1)"
+"0","tidy(bacteria_oxygen_model) %>% "
+"0","  kable(caption = ""Linear Model of Bacteria and Oxygen"")"

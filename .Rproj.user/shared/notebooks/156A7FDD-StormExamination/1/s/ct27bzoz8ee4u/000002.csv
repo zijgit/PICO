@@ -1,0 +1,2 @@
+"0","predictedprecip.ts <- ts(florence$PRCPMEAN, start = c(2018, 9), frequency = 365)"
+"0","plot(predictedprecip.ts)"

@@ -1,0 +1,4 @@
+"0","TS_Plot <- "
+"0","  ggplot(full_pHMEAN, aes(x=Days, y=pHMEAN)) +"
+"0","      geom_line()"
+"0","plot(TS_Plot)"

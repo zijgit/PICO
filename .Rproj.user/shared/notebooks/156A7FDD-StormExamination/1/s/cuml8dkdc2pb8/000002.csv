@@ -1,0 +1,3 @@
+"0","pico <- read.table(""data/allpico-dataexport.txt"", header = TRUE, "
+"0","                        stringsAsFactors = FALSE )"
+"0","weather <- read.csv(""data/2639535.csv"", header = TRUE)"

@@ -1,0 +1,5 @@
+"0","september_rain <- all_rain %>% "
+"0","  filter(Month == 9)"
+"0","ggplot(data = florence, aes(y = pHMEAN, x = DATE)) +"
+"0","  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +"
+"0","  geom_point()"

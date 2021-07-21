@@ -1,0 +1,5 @@
+"0","o_pH_temp <- pico1 %>% "
+"0","  select(OxygenMEAN, pHMEAN, TemperatureMEAN)"
+"0",""
+"0","ggpairs(o_pH_temp, columns = 1:ncol(o_pH_temp), title = """",  "
+"0","  axisLabels = ""show"", columnLabels = colnames(o_pH_temp[]))"

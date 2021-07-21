@@ -1,0 +1,5 @@
+"0","ggplot(pico1) +"
+"0","  geom_line(aes(y = TemperatureMEAN, x = Days),  size = 0.25) +"
+"0","  geom_line(aes(y = OxygenMEAN, x = Days), color = ""#c13d75ff"")  + "
+"0","  geom_line(aes(y = OxygenSaturationMEAN, x = Days), color = ""blue"") +"
+"0","  labs(title = ""Mean Oxygen and Oxygen Saturation Plotted Against Temp"")"

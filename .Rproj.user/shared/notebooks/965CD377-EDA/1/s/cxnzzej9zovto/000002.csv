@@ -1,0 +1,1 @@
+"0","pico1.ts_o <- ts(full_oMEAN$OxygenMEAN, start = c(2010, 7), frequency = 52)"

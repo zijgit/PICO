@@ -1,0 +1,4 @@
+"0","temp_salinity <- pico1 %>% "
+"0","  select(bacteriaMEAN, SalinityMEAN, TemperatureMEAN)"
+"0",""
+"0","ggcorr(temp_salinity, palette = ""RdBu"", label = TRUE)"

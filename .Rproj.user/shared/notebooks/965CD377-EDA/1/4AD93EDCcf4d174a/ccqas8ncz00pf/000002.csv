@@ -1,0 +1,4 @@
+"0"," d <- pairwise.wilcox.test(pico1$deltaCO2, pico1$NamedStorm, "
+"0","                      paired = FALSE)"
+"0","tidy(d) %>% "
+"0","  kable(caption = ""Pairwise Wilcox Test"")"

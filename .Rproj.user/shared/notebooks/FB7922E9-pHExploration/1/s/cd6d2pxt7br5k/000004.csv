@@ -1,0 +1,3 @@
+"0","glance(reduced_model)%>%"
+"0","  select(adj.r.squared, AIC, BIC) %>% "
+"0","  kable(digits=4, caption = ""Model Selection Criteria for Reduced Model"", col.names = c(""Adjusted R Squared"", ""AIC"", ""BIC""))"

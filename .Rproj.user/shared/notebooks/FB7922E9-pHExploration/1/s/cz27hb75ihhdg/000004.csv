@@ -1,0 +1,2 @@
+"0","ggplot(data = full_pHMEAN, aes(x = Days, y = diff, fill = NamedStorm)) +"
+"0","  geom_bar(stat ='identity', width=1.5)"

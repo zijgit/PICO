@@ -1,0 +1,1 @@
+"0","model_int <- lm(pHMEAN ~ 1, data = full_model_data)"

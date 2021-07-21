@@ -1,0 +1,2 @@
+"0","neuse.Decomposed <- stl(neuse.ts, s.window = ""periodic"")"
+"0","plot(neuse.Decomposed)"

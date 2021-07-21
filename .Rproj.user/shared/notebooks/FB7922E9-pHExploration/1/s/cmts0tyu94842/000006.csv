@@ -1,0 +1,6 @@
+"0","smallest_DICMEAN <- pico1 %>% "
+"0","  filter(!is.na(DICMEAN))%>% "
+"0","  select(DICMEAN,Date) %>% "
+"0","  arrange(DICMEAN) %>% "
+"0","  slice(1)"
+"0","smallest_DICMEAN"

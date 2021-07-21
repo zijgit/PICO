@@ -1,0 +1,4 @@
+"0","p_salinity <- ggplot(data=pico1, aes(x = SalinityMEAN, y = bacteriaMEAN)) +"
+"0","                geom_point() +"
+"0","                labs(title = ""BacteriaMEAN vs. SalinityMEAN"")"
+"0","p_temp+p_salinity"

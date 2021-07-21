@@ -1,0 +1,3 @@
+"0","bacteria_temp_model <- lm(bacteriaMEAN~TemperatureMEAN, data = pico1)"
+"0","tidy(bacteria_temp_model) %>% "
+"0","  kable(caption = ""Linear Model of Bacteria and Temperature"")"

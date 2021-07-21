@@ -1,0 +1,2 @@
+"0","weeklypH.Decomposed <- stl(weeklypH.ts, s.window = ""periodic"")"
+"0","plot(weeklypH.Decomposed)"

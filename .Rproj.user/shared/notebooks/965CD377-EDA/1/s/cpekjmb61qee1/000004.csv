@@ -1,0 +1,4 @@
+"0","pico1_Components_o <- as.data.frame(pico1.Decomposed_o$time.series[,1:3])"
+"0","pico1_Components_o <- mutate(pico1_Components_o,"
+"0","        Observed = full_oMEAN$OxygenMEAN,     "
+"0","        Days = full_oMEAN$Days)"

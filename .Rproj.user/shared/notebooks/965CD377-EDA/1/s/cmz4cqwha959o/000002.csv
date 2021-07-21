@@ -1,0 +1,2 @@
+"0","o_pH_model <- lm(pHMEAN ~ OxygenMEAN, data = pico1)"
+"0","tidy(o_pH_model)"

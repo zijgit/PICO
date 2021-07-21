@@ -1,0 +1,2 @@
+"0","tidy(SeasonalMannKendall(pico1.ts)) %>% "
+"0","  kable()"

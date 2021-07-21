@@ -1,0 +1,2 @@
+"0","predict_ph <- lm(pHMEAN ~ Month, data = all_rain)"
+"0","predict_dic <- lm(DICMEAN ~ Month, data = all_rain)"

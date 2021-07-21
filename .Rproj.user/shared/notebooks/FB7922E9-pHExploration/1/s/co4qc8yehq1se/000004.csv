@@ -1,0 +1,6 @@
+"0","sum_stats <- full_pHMEAN %>% "
+"0","  summarize(Min = min(pHMEAN), Max = max(pHMEAN),"
+"0","            Mean = mean(pHMEAN), Median = median(pHMEAN),"
+"0","            Q1 = quantile(pHMEAN, c(.25)), Q3 = quantile(pHMEAN, c(.75)),"
+"0","            Standard_Deviation = sd(pHMEAN), IQR = IQR(pHMEAN))"
+"0","knitr::kable(sum_stats, digits = 3)"

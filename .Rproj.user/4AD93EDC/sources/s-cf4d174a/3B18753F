@@ -1,0 +1,32 @@
+{
+    "id": "3B18753F",
+    "path": null,
+    "project_path": null,
+    "type": "r_dataframe",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1625771670102.0,
+    "source_on_save": false,
+    "relative_order": 3,
+    "properties": {
+        "expression": "pico1",
+        "caption": "pico1",
+        "totalObservations": "679",
+        "displayedObservations": "679",
+        "variables": "620",
+        "cacheKey": "ACA78EB0",
+        "object": "pico1",
+        "environment": "",
+        "contentUrl": "grid_resource/gridviewer.html?env=&obj=pico1&cache_key=ACA78EB0&max_cols=50",
+        "preview": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 94406988169328,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1625771670102,
+    "read_only": false,
+    "read_only_alternatives": []
+}

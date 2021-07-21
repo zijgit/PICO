@@ -775,7 +775,62 @@ ccf_vals <- ccf(falls_seasadj, pico1_seasadj)
 ccf_vals
 ```
 
+## Checking pH Trend
 
+```{r weekly-dataset}
+weekly <- pico1 %>% 
+  select(Date, Day, Month, Year, pHMEAN, DICMEAN, NamedStorm) %>% 
+  filter(!is.na(Day))
+```
+
+```{r filtering-out-daily-values}
+inc <- 2
+for(x in 2:nrow(weekly)){
+  inc <- inc + 1
+  if(!is.na(weekly[inc, 2])){
+  if((weekly[inc, 2] - weekly[inc-1, 2]) >= 0 ){
+  if(weekly[inc, 2] - weekly[inc-1, 2] < 5 ){
+    weekly <- weekly %>% 
+    slice(-c(inc))
+    inc <- inc-1
+  }
+}
+  else{
+  if(weekly[inc, 2] - weekly[inc-1, 2] < -28){
+    weekly <- weekly %>% 
+    slice(-c(inc))
+    inc <- inc-1
+      }
+    }
+  }
+}
+
+weekly <- weekly %>% 
+  filter(!is.na(pHMEAN)) %>% 
+  filter(!is.na(DICMEAN))
+```
+
+```{r}
+ggplot(data = weekly, aes(x = Date, y = pHMEAN)) +
+  geom_point()
+```
+
+
+```{r ph-weekly-timeseries}
+weeklypH.ts <- ts(weekly$pHMEAN, start = c(2010, 28), frequency = 52)
+```
+
+```{r decomposed-weeklyph-ts}
+weeklypH.Decomposed <- stl(weeklypH.ts, s.window = "periodic")
+plot(weeklypH.Decomposed)
+```
+
+```{r mann-kendall-ph-weekly}
+tidy(SeasonalMannKendall(weeklypH.ts)) %>% 
+  select(p.value, kendall_score, statistic) %>% 
+  kable(caption = "Seasonal Mann Kendall test for pH")
+trend::smk.test(weeklypH.ts)
+```
 
 
 

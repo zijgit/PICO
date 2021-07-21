@@ -204,19 +204,19 @@ full_pHMEAN <- full_pHMEAN %>%
   mutate(diff = pHMEAN -  mean(full_pHMEAN$pHMEAN))
 ```
 
-```{r}
+```{r ph-diff-from-mean}
 ggplot(data = full_pHMEAN, aes(x = Days, y = diff, fill = NamedStorm)) +
   geom_bar(stat ='identity', width=1.5)
 ```
 
-```{r}
+```{r filtering-diff-max}
 full_pHMEAN %>% 
   filter(diff > 0.175) %>% 
   select(Date, pHMEAN, diff, NamedStorm) %>% 
   arrange(Date)
 ```
 
-```{r}
+```{r filtering-diff-min}
 full_pHMEAN %>% 
   filter(diff < -0.15) %>% 
   select(Date, pHMEAN, diff, NamedStorm) %>% 
@@ -224,22 +224,22 @@ full_pHMEAN %>%
 ```
 
 
-```{r}
+```{r filtering-first-half}
 graph_data1 <- full_pHMEAN %>%
   filter(Days < 1992.94)
 ```
 
-```{r}
+```{r filtering-second-half}
 graph_data2 <- full_pHMEAN %>%
   filter(Days >= 1992.94)
 ```
 
-```{r}
+```{r plot-first-half}
 ggplot(data = graph_data1, aes(x = Days, y = diff, fill = NamedStorm)) +
   geom_bar(stat ='identity', width=2)
 ```
 
-```{r}
+```{r plot-second-half}
 ggplot(data = graph_data2, aes(x = Days, y = diff, fill = NamedStorm)) +
   geom_bar(stat ='identity', width=2)
 ```
@@ -518,7 +518,7 @@ According to the boxplot there looks like there is a difference in the mean NH4 
 
 ## Multiple Linear Regression
 
-```{r}
+```{r removing-missing-values-for-variables}
 full_model_data <- pico1 %>% 
   filter(!is.na(pHMEAN)) %>% 
   filter(!is.na(TemperatureMEAN)) %>% 

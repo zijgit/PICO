@@ -1,0 +1,1084 @@
+---
+title: "Salinity Exploration"
+author: "Morgan Pruchniewski"
+date: "6/11/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+
+
+```{r read-data}
+getwd()
+exploration_data <- read.table("allpico-dataexport.txt", header = TRUE, 
+                        stringsAsFactors = FALSE)
+exploration_data <- as_tibble(exploration_data)
+exploration_data[exploration_data == "NaN"] <- NA
+exploration_data
+```
+
+##Initial Visualizations
+```{r visualization-DIC-DOC}
+ggplot(data = exploration_data, mapping = aes(x = Days, y = DOCMEAN)) +
+  geom_point() +
+  geom_smooth(method='lm', color = "hot pink") +
+  theme_bw()
+ggplot(data = exploration_data, mapping = aes(x = Days, y = DICMEAN)) +
+  geom_point() +
+  geom_smooth(method='lm', color = "hot pink") +
+  theme_bw()
+ggplot(data = exploration_data, mapping = aes(x = DICMEAN, y = DOCMEAN)) +
+  geom_point() +
+  geom_smooth(method='lm', color = "hot pink") +
+  theme_bw()
+ggplot(data = exploration_data, mapping = aes(x = Days, y = SalinityMEAN)) +
+  geom_point() +
+  geom_smooth(method='lm', color = "hot pink") +
+  theme_bw()
+```
+
+## Salinity Time Series 
+```{r ts-salinity}
+which(is.na(exploration_data$SalinityMEAN))
+exploration_data1 <- exploration_data[-c(58,147,148,149,150,151,152,153), ]
+library(zoo)
+library(tseries)
+salinity_ts <- ts(exploration_data1$SalinityMEAN, start = c(2010,7), frequency = 52)
+salinity_decomposed <- stl(salinity_ts_complete, s.window = "periodic")
+plot(salinity_decomposed)
+```
+
+```{r salinity-components}
+salinity_components <- as.data.frame(salinity_decomposed$time.series[,1:3])
+salinity_components <- 
+  mutate(salinity_components,
+         Observed = exploration_data1$SalinityMEAN,
+         Date = exploration_data1$Days)
+ggplot(salinity_components) +
+  geom_line(aes(y=Observed,x=Date), size = 0.25) +
+  geom_line(aes(y=trend,x=Date), color = "hot pink") +
+  geom_hline(yintercept=0,lty=2)
+ggplot(salinity_components) +
+  geom_line(aes(y=Observed,x=Date), size = 0.25) +
+  geom_line(aes(y=seasonal,x=Date), color = "hot pink") +
+  geom_hline(yintercept=0,lty=2) 
+```
+
+```{r mann-kendall}
+install.packages("Kendall")
+library(Kendall)
+```
+
+
+
+```{r kendall-test}
+salinity_trend1 <- Kendall::SeasonalMannKendall(salinity_ts_complete)
+salinity_trend1
+summary(salinity_trend1)
+```
+
+In a Mann-Kendall test, the null hypothesis is that the data is stationary. Since there is a very small p value, this means that we reject the null hypothesis. There is significant evidence that the data does follow a trend.
+
+```{r package}
+install.packages("trend")
+```
+
+```{r library}
+library(trend)
+```
+
+```{r seasonal-test}
+salinity_trend2 <- trend::smk.test(salinity_ts_complete)
+salinity_trend2
+```
+
+There also is evidence of a trend due to the small p-value from the Seasonal Mann-Kendall trend test.
+
+```{r salinity-plot}
+salinity_plot <-
+  ggplot(exploration_data, aes(x=Days,y=SalinityMEAN)) +
+  geom_point() +
+  geom_line() +
+  geom_smooth(method = lm)
+print(salinity_plot)
+```
+
+After running these tests, it is clear that salinity has been trending down over time, possibly due to climate change, as is seen from the negative slope on the plot above.
+
+```{r acf-pacf}
+library(forecast)
+salinity_ts_complete %>% ggtsdisplay()
+
+```
+This needs differencing because the ACF is not going down to zero.
+
+```{r}
+salinity_ts_complete %>% diff(lag=1) %>% diff() %>% ggtsdisplay()
+```
+The following code is based off of the code from the https://towardsdatascience.com/time-series-modeling-for-atmospheric-co2-concentration-ppm-1958-2019-8425fadcb927 example.
+```{r arima}
+auto.arima(salinity_ts_complete)
+
+```
+
+This creates an ARIMA model that best fits the data.
+
+```{r fit}
+(fit <- Arima(salinity_ts_complete, order=c(2,1,2)))
+```
+
+```{r residuals}
+checkresiduals(fit)
+```
+
+
+This passes the Ljung-Box test because the p-value is higher than .05 and the residuals resemble white-noise.
+
+```{r}
+library(ggthemes)
+install.packages("wesanderson")
+library(wesanderson)
+```
+
+
+```{r}
+theme_Publication <- function(base_size=12, base_family="Helvetica") {
+
+ 
+
+      (theme_foundation(base_size=base_size, base_family=base_family)
+       + theme(plot.title = element_text(face = "bold",
+                                         size = rel(1.2), hjust = 0.5),
+               text = element_text(),
+               panel.background = element_rect(colour = NA),
+               plot.background = element_rect(colour = NA),
+               panel.border = element_rect(colour = NA),
+               axis.title = element_text(face = "bold",size = rel(1)),
+               axis.title.y = element_text(angle=90,vjust =2),
+               axis.title.x = element_text(vjust = -0.2),
+               axis.text = element_text(), 
+               axis.line = element_line(colour="black"),
+               axis.ticks = element_line(),
+               panel.grid.major = element_line(colour="#f0f0f0"),
+               panel.grid.minor = element_blank(),
+               legend.key = element_rect(colour = NA),
+               legend.position = "bottom",
+               legend.direction = "horizontal",
+               legend.key.size= unit(0.5, "cm"),
+               legend.margin = unit(0, "cm"),
+               legend.title = element_text(face="italic"),
+               plot.margin=unit(c(10,5,5,5),"mm"),
+               strip.background=element_rect(colour="#f0f0f0",fill="#f0f0f0"),
+               strip.text = element_text(face="bold")
+          ))
+      
+}
+
+ 
+
+pal <- wes_palette("Zissou1", 50, type = "continuous")
+```
+
+
+The above code establishes a consistent theme for all of the figures that we plan to use in our paper.
+
+```{r forecast}
+ts1 <- autoplot(forecast(fit), values = pal) + theme_Publication() 
+ts1
+```
+
+The above plot shows the time series for salinity and also predicts the trend up until 2025.
+
+```{r seasonal-adjustment}
+library(forecast)
+salinityts_seasonaladj <- seasadj(salinity_decomposed)  # de-seasonalize
+plot(salinity_ts_complete, type="l")  # original series
+plot(salinityts_seasonaladj, type="l")  # seasonal adjusted
+seasonplot(salinityts_seasonaladj, 12, col=rainbow(12), year.labels=TRUE, main="Seasonal plot: Salinity") # seasonal frequency set as 12 for monthly data.
+```
+
+
+##Storm Influence on Salinity 
+```{r storm-highlight}
+exploration_data <- exploration_data %>%
+  mutate(highlight_flag = ifelse(NamedStorm > 0 | NorEaster > 0, T, F))  
+
+exploration_data %>%
+  ggplot(aes(x = Days, y = SalinityMEAN)) +
+    geom_point(aes(color = highlight_flag)) +
+    scale_color_manual(values = c('#595959', 'red'))
+
+ggplot(exploration_data, aes(x = Days, y = SalinityMEAN)) +
+  geom_boxplot(aes(color=highlight_flag)) +
+  scale_color_manual(values = c('#595959', 'blue')) +
+  coord_flip() +
+  theme_bw()
+```
+It appears that salinity values are - in general - lower during a storm. This makes sense since there is a rush of freshwater entering the salt water near Beaufort, which would decrease salinity. To better clarify what is a storm, it might be helpful to define how high the rivers that lead to Beaufort should be. Here are some databases of river gauges:
+https://waterdata.usgs.gov/nc/nwis/rt
+https://waterdata.usgs.gov/nc/nwis/uv?site_no=02087183
+
+Other than looking more at how salinity is changing, I want to look at how salinity impacts the ecology of Beaufort - specifically the bacteria that were measured in the data. 
+```{r bacteria-salinity}
+ggplot(data=exploration_data, mapping = aes(x = SalinityMEAN, y=bacteriaMEAN)) +
+  geom_point() +
+  geom_smooth(method = lm, color = "blue")
+```
+```{r correlations}
+cor <- cor.test(exploration_data$SalinityMEAN, exploration_data$bacteriaMEAN, method = "pearson")
+cor
+```
+
+Running a Pearson correlation test revealed that there is not enough evidence to determine that there is a non-zero correlation between salinity and bacteria. I also want to look at the relationship between salinity and another biological value: chlorophyll.
+
+```{r correlations-1}
+cor1 <- cor.test(exploration_data$SalinityMEAN, exploration_data$ChlExtractMEAN, method = "pearson")
+cor1
+```
+
+The p-value is small enough to reject the null hypothesis that the correlation is zero. The cor value is -.185 which means that as salinity increases, chlorophyll levels decrease. This could be a significant finding since there is evidence that salinity is increasing over time (through time series analysis).
+
+Another variable I looked at the correlation for is pH.
+```{r correlations-2}
+cor2 <- cor.test(exploration_data$SalinityMEAN, exploration_data$pHprobeMEAN, method = "pearson")
+cor2
+```
+
+Small enough p-value to reject the null. The correlation coefficient is .222 which means that as salinity decreases, the pH does too. This supports that ocean pH is decreasing (making the ocean more acidic) due to climate change. 
+
+I wanted to look at when the maximum salinity was recorded and possibly figure out why.
+```{r max}
+exploration_data %>%
+  arrange(desc(SalinityMEAN)) %>%
+  slice(1:10) %>%
+  select(Month, Year, SalinityMEAN)
+```
+Most of the highest salinity values occurred in July 2010 and June/July/August of 2011. This could be due to higher salinity during the summer (which I will need to investigate by look at seasonal differences). I couldn't find any major storms during this time.
+
+```{r min}
+exploration_data %>%
+  arrange(SalinityMEAN) %>%
+  slice(1:10) %>%
+  select(Month, Year, SalinityMEAN)
+```
+
+The lowest values of salinity occur in the fall months (September, October, and sometimes August). They also could be a result of storms. The lowest value by far is from September, 2018, which is when Hurricane Florence passed by North Carolina. 
+```{r months}
+#Work on this, making warm and cold season variables based on month number
+exploration_data <- exploration_data %>%
+  mutate(season = case_when(
+    Month == 12 | Month <= 2 ~ "Winter",
+    Month > 2 & Month <=5 ~ "Spring",
+    Month > 5 & Month <= 8 ~ "Summer",
+    Month > 8 & Month <= 11 ~ "Fall"
+  ))
+
+ggplot(exploration_data, aes(x = Days, y = SalinityMEAN)) +
+  geom_boxplot(aes(group = season, color = season)) +
+  coord_flip() +
+  theme_bw()
+```
+Based off of creating a new variable for the four seasons, it is evident that there was a seasonal trend. Fall and Winter has lower salinity on average than salinity in Spring and Summer. Summer has the highest average salinity while Fall has the lowest, but Fall also has the most variable salinity values. 
+
+```{r anova-test-seasons}
+anova_seasons <- aov(SalinityMEAN ~ season, data = exploration_data)
+summary(anova_seasons)
+```
+
+Since the p-value of 2e-16 is much lower than the $\alpha$ value of .05, we have significant enough evidence to reject the null hypothesis that seasons have no impact on salinity.
+
+## Pairwise-Wilcox Test
+To run a Pairwise Wilcox test, I used code from this website:
+http://www.sthda.com/english/wiki/paired-samples-wilcoxon-test-in-r
+```{r pairwise-wilcox-test-salinity-storms}
+#First I checked the summary statistics by Named Storm value (remember 0 means there was no storm, 1 means there was). Could possibly make a new variable that includes a few days after the storm or before or something like that
+library(dplyr)
+group_by(exploration_data, NamedStorm) %>%
+  summarise(
+    count = n(),
+    median = median(SalinityMEAN, na.rm = TRUE),
+    IQR = IQR(SalinityMEAN, na.rm = TRUE)
+  )
+```
+```{r package1}
+#Then I visualized both in box plots, similar to the work I did a little farther above
+install.packages("ggpubr")
+```
+```{r storm-plot}
+library(ggpubr)
+ggboxplot(exploration_data, x = "NamedStorm", y = "SalinityMEAN", 
+          color = "NamedStorm", palette = c("#00AFBB", "#E7B800"),
+          order = c("0", "1"),
+          ylab = "Salinity", xlab = "Storm Value")
+```
+These boxplots show that there is a slight difference. I believe this difference could be more noticable if a new variable is made to include a regulated number of days after the named storm is recorded.
+
+```{r package2}
+install.packages("PairedData")
+```
+
+```{r wilcox}
+no_storm_salinity <- subset(exploration_data,NamedStorm=="0",select=c("SalinityMEAN", "NamedStorm"))
+storm_salinity <- subset(exploration_data,NamedStorm=="1",select=c("SalinityMEAN", "NamedStorm"))
+merged<-rbind(no_storm_salinity,storm_salinity)
+wilcox.test(SalinityMEAN~NamedStorm,data=merged)
+```
+
+The p-value of .05613 is larger than the $\alpha$ of .05, so we fail to reject the null hypothesis of the true location shift being equal to zero. This doesn't show evidence that storms have a great enough impact on salinity, however I believe that we could find this to be different if we broaded the NamedStorm variable, to maybe make a variable that includes the impacts of days after a storm.
+
+I did a little research (https://pubs.usgs.gov/circ/1306/pdf/c1306_ch6_f.pdf) on how long the effects of a storm can last, but we need to come to a consensus on an exact day length to include in our model. Until then, here is my work writing code to create a new variable that includes the aftermath of the storm.
+
+```{r storm-aftermath}
+#NamedStorm shows a value of 1 when a storm is recorded. I want to make a variable StormAftermath that includes the day the storm was first reported and four days after that 
+
+exploration_data <- exploration_data %>%
+  mutate(StormAftermath = case_when(
+    highlight_flag == "TRUE" ~ 1,
+    highlight_flag == "FALSE" ~ 0))
+
+for(i in 1:679) {
+  if(exploration_data$highlight_flag[i] == "TRUE") {
+    exploration_data$StormAftermath[i] <- 1
+    exploration_data$StormAftermath[i + 1] <- 1
+    exploration_data$StormAftermath[i + 2] <- 1
+    exploration_data$StormAftermath[i + 3] <- 1
+    exploration_data$StormAftermath[i + 4] <- 1
+  }
+  else{
+  }
+}
+view(exploration_data)
+```
+
+Based on this new definition of StormAftermath (the number of days after the storm we still need to decide on), I'm going to redo my visualizations and Pairwise Wilcox test to see if I get a more significant result.
+
+```{r summary}
+group_by(exploration_data, StormAftermath) %>%
+  summarise(
+    count = n(),
+    median = median(SalinityMEAN, na.rm = TRUE),
+    IQR = IQR(SalinityMEAN, na.rm = TRUE)
+  )
+```
+```{r storm-aftermath-plot}
+ggboxplot(exploration_data, x = "StormAftermath", y = "SalinityMEAN", 
+          color = "StormAftermath", palette = c("#00AFBB", "#E7B800"),
+          order = c("0", "1"),
+          ylab = "Salinity", xlab = "Storm Value")
+```
+
+```{r wilcox1}
+no_stormaftermath_salinity <- subset(exploration_data,StormAftermath=="0",select=c("SalinityMEAN", "StormAftermath"))
+stormaftermath_salinity <- subset(exploration_data,StormAftermath=="1",select=c("SalinityMEAN", "StormAftermath"))
+merged_stormaftermath<-rbind(no_stormaftermath_salinity,stormaftermath_salinity)
+wilcox.test(SalinityMEAN~StormAftermath,data=merged_stormaftermath)
+```
+
+After redefining what is considered to be a date impacted by a storm, the p-value is now smaller than the $\alpha$ of .05. This means that we can reject the null hypothesis, and there is significant evidence that the true location shift in salinity when there is a storm versus when there isn't one is not equal to 0. This is a more significant finding, and prompts further analysis. 
+
+## T-Test
+```{r t-test}
+t.test(no_stormaftermath4_salinity$SalinityMEAN, stormaftermath4_salinity$SalinityMEAN)
+ggboxplot(exploration_data, x = "StormAftermath4", y = "SalinityMEAN", 
+          color = "StormAftermath4", palette = c("#00AFBB", "#E7B800"),
+          order = c("0", "1"),
+          ylab = "Salinity", xlab = "Storm Value")
+```
+
+The p-value of .0002694 is smaller than the $\alpha$ value of .05, which means that there is significant enough evidence to reject the null hypothesis that the difference in the mean of salinity with no storm and the mean of salinity the day of a named storm and a few days after is zero. This encourages further research to look at what this difference is.
+
+```{r anova-storms}
+anova_storms <- aov(SalinityMEAN ~ StormAftermath4, data = exploration_data)
+summary(anova_storms)
+```
+
+The p-value of 9.44e-8 is smaller than the $\alpha$ value of .05, so we have significant evidence to reject the null hypothesis that whether or not there was a storm has no impact on the salinity level.
+
+That looked at the impact considering that storms only have impact four days after a named storm. I'm going to be testing out several other values of StormAftermath, including 7, 10, and 14 days after to see at what length there is no longer a significant distance from the mean. I will confirm that length by looking at the graphs further below.
+
+```{r storm-aftermath1}
+exploration_data <- exploration_data %>%
+  mutate(StormAftermath1 = case_when(
+    highlight_flag == "TRUE" ~ 1,
+    highlight_flag == "FALSE" ~ 0))
+
+for(i in 1:679) {
+  if(exploration_data$highlight_flag[i] == "TRUE") {
+    exploration_data$StormAftermath1[i] <- 1
+    exploration_data$StormAftermath1[i + 1] <- 1
+    exploration_data$StormAftermath1[i + 2] <- 1
+    exploration_data$StormAftermath1[i + 3] <- 1
+    exploration_data$StormAftermath1[i + 4] <- 1
+    exploration_data$StormAftermath1[i + 5] <- 1
+    exploration_data$StormAftermath1[i + 6] <- 1
+    exploration_data$StormAftermath1[i + 7] <- 1
+  }
+  else{
+  }
+}
+```
+
+```{r pairwise-stormaftermath1}
+no_stormaftermath1_salinity <- subset(exploration_data,StormAftermath1=="0",select=c("SalinityMEAN", "StormAftermath1"))
+stormaftermath1_salinity <- subset(exploration_data,StormAftermath1=="1",select=c("SalinityMEAN", "StormAftermath1"))
+merged_stormaftermath1<-rbind(no_stormaftermath1_salinity,stormaftermath1_salinity)
+wilcox.test(SalinityMEAN~StormAftermath1,data=merged_stormaftermath1)
+```
+
+Since the p-value is less than .05, a week after the storm there is still a difference. 
+
+```{r storm-aftermath2}
+exploration_data <- exploration_data %>%
+  mutate(StormAftermath2 = case_when(
+    highlight_flag == "TRUE" ~ 1,
+    highlight_flag == "FALSE" ~ 0))
+
+for(i in 1:679) {
+  if(exploration_data$highlight_flag[i] == "TRUE") {
+    exploration_data$StormAftermath2[i] <- 1
+    exploration_data$StormAftermath2[i + 1] <- 1
+    exploration_data$StormAftermath2[i + 2] <- 1
+    exploration_data$StormAftermath2[i + 3] <- 1
+    exploration_data$StormAftermath2[i + 4] <- 1
+    exploration_data$StormAftermath2[i + 5] <- 1
+    exploration_data$StormAftermath2[i + 6] <- 1
+    exploration_data$StormAftermath2[i + 7] <- 1
+    exploration_data$StormAftermath2[i + 8] <- 1
+    exploration_data$StormAftermath2[i + 9] <- 1
+    exploration_data$StormAftermath2[i + 10] <- 1
+  }
+  else{
+  }
+}
+```
+
+```{r pairwise-stormaftermath2}
+no_stormaftermath2_salinity <- subset(exploration_data,StormAftermath2=="0",select=c("SalinityMEAN", "StormAftermath2"))
+stormaftermath2_salinity <- subset(exploration_data,StormAftermath2=="1",select=c("SalinityMEAN", "StormAftermath2"))
+merged_stormaftermath2<-rbind(no_stormaftermath2_salinity,stormaftermath2_salinity)
+wilcox.test(SalinityMEAN~StormAftermath2,data=merged_stormaftermath2)
+```
+
+The p-value is still less than .05, so there is still a difference even ten days out from a storm event.
+
+```{r storm-aftermath3}
+exploration_data <- exploration_data %>%
+  mutate(StormAftermath3 = case_when(
+    highlight_flag == "TRUE" ~ 1,
+    highlight_flag == "FALSE" ~ 0))
+
+for(i in 1:679) {
+  if(exploration_data$highlight_flag[i] == "TRUE") {
+    exploration_data$StormAftermath3[i] <- 1
+    exploration_data$StormAftermath3[i + 1] <- 1
+    exploration_data$StormAftermath3[i + 2] <- 1
+    exploration_data$StormAftermath3[i + 3] <- 1
+    exploration_data$StormAftermath3[i + 4] <- 1
+    exploration_data$StormAftermath3[i + 5] <- 1
+    exploration_data$StormAftermath3[i + 6] <- 1
+    exploration_data$StormAftermath3[i + 7] <- 1
+    exploration_data$StormAftermath3[i + 8] <- 1
+    exploration_data$StormAftermath3[i + 9] <- 1
+    exploration_data$StormAftermath3[i + 10] <- 1
+    exploration_data$StormAftermath3[i + 11] <- 1
+    exploration_data$StormAftermath3[i + 12] <- 1
+    exploration_data$StormAftermath3[i + 13] <- 1
+    exploration_data$StormAftermath3[i + 14] <- 1
+  }
+  else{
+  }
+}
+```
+
+
+```{r pairwise-stormaftermath3}
+no_stormaftermath3_salinity <- subset(exploration_data,StormAftermath3=="0",select=c("SalinityMEAN", "StormAftermath3"))
+stormaftermath3_salinity <- subset(exploration_data,StormAftermath3=="1",select=c("SalinityMEAN", "StormAftermath3"))
+merged_stormaftermath3<-rbind(no_stormaftermath3_salinity,stormaftermath3_salinity)
+wilcox.test(SalinityMEAN~StormAftermath3,data=merged_stormaftermath3)
+```
+
+There is still a difference 2 weeks out.
+
+```{r storm-aftermath4}
+exploration_data <- exploration_data %>%
+  mutate(StormAftermath4 = case_when(
+    highlight_flag == "TRUE" ~ 1,
+    highlight_flag == "FALSE" ~ 0))
+
+for(i in 1:679) {
+  if(exploration_data$highlight_flag[i] == "TRUE") {
+    exploration_data$StormAftermath4[i] <- 1
+    exploration_data$StormAftermath4[i + 20] <- 1
+  }
+  else{
+  }
+}
+```
+
+```{r pairwise-stormaftermath4}
+no_stormaftermath4_salinity <- subset(exploration_data,StormAftermath4=="0",select=c("SalinityMEAN", "StormAftermath4"))
+stormaftermath4_salinity <- subset(exploration_data,StormAftermath4=="1",select=c("SalinityMEAN", "StormAftermath4"))
+merged_stormaftermath4<-rbind(no_stormaftermath4_salinity,stormaftermath4_salinity)
+wilcox.test(SalinityMEAN~StormAftermath4,data=merged_stormaftermath4)
+```
+
+20 days out, the p-value is still small enough to show that there is a difference. 
+
+```{r storm-aftermath-determined}
+exploration_data <- exploration_data %>%
+  mutate(StormAftermathFINAL = case_when(
+    highlight_flag == "TRUE" ~ 1,
+    highlight_flag == "FALSE" ~ 0))
+
+for(i in 1:679) {
+  if(exploration_data$highlight_flag[i] == "TRUE") {
+    exploration_data$StormAftermath4[i] <- 1
+    exploration_data$StormAftermath4[i + 21] <- 1
+  }
+  else{
+  }
+}
+```
+
+```{r pairwise-FINAL}
+no_stormaftermathFINAL_salinity <- subset(exploration_data,StormAftermathFINAL=="0",select=c("SalinityMEAN", "StormAftermathFINAL"))
+stormaftermathFINAL_salinity <- subset(exploration_data,StormAftermathFINAL=="1",select=c("SalinityMEAN", "StormAftermathFINAL"))
+merged_stormaftermathFINAL<-rbind(no_stormaftermathFINAL_salinity,stormaftermathFINAL_salinity)
+wilcox.test(SalinityMEAN~StormAftermathFINAL,data=merged_stormaftermathFINAL)
+```
+
+21 days out from a storm, the p-value is .05613 which is greater than the $\alpha$ of .05. This means that there is no significant enough evidence to reject the null hypothesis. At this distance out from a named storm event, there is not a significant difference between salinity values and the mean salinity value. Therefore, I've choosen to use 20 days out from a named storm event as the storm aftermath value. From now on in the evaluation, I will be using StormAftermath4 as the official value (20 days after a named storm event).
+
+##Two-Way Anova
+```{r two-way-anova}
+two_way <- aov(SalinityMEAN ~ StormAftermath4 + season, data = exploration_data)
+summary(two_way)
+```
+Summarized the findings from above in the same table. Shows that both seasons and storms have an impact on salinity values in Beaufort. 
+
+##Linear Models Comparison
+```{r linear-model}
+salinity_lm <- lm(SalinityMEAN ~ Days, data=exploration_data)
+salinity_lm
+```
+
+
+##Quantifying the Length of Storm Impacts
+```{r find-variable}
+which( colnames(exploration_data)=="salinity_difference" )
+exploration_data
+```
+
+
+
+```{r}
+avg_salinity <- mean(exploration_data$SalinityMEAN, na.rm = TRUE)
+avg_salinity
+
+exploration_data <- exploration_data %>%
+  mutate(salinity_difference = SalinityMEAN - avg_salinity) 
+
+ggplot(data = exploration_data) +
+  geom_col(aes(x = Days, y = salinity_difference), color = "black") +
+  geom_vline(aes(xintercept = Days),
+               data = exploration_data %>% filter(NamedStorm == 1),
+             color = "blue") +
+  theme_bw()
+
+```
+
+The above plot marks blue lines where there was a named storm event, showing that some of the greatest spikes were located near - and influenced by - such events.
+
+```{r}
+exploration_data %>%
+  filter(NamedStorm == 1) %>%
+  select(NamedStorm, Days)
+```
+
+
+To continue this, I need to make subsets of Days so that I can look at each storm more closely.
+
+```{r}
+storm1 <- subset(exploration_data, Days > 230 & Days < 280)
+ggplot(data = storm1) +
+  geom_col(aes(x = Days, y = salinity_difference), color = "black") +
+  geom_vline(aes(xintercept = Days),
+               data = storm1 %>% filter(NamedStorm == 1),
+             color = "blue") +
+  theme_bw()
+```
+
+There were not enough values from this year to come to any conclusions.
+
+```{r}
+storm2 <- subset(exploration_data, Days > 580 & Days < 630 )
+ggplot(data = storm2) +
+  geom_col(aes(x = Days, y = salinity_difference), color = "black") +
+  geom_vline(aes(xintercept = Days),
+               data = storm2 %>% filter(NamedStorm == 1),
+             color = "blue") +
+  theme_bw()
+
+storm3 <- subset(exploration_data, Days > 980 & Days < 1070 )
+ggplot(data = storm3) +
+  geom_col(aes(x = Days, y = salinity_difference), color = "black") +
+  geom_vline(aes(xintercept = Days),
+               data = storm3 %>% filter(NamedStorm == 1),
+             color = "blue") +
+  theme_bw()
+
+year4 <- subset(exploration_data, Year == 2013)
+ggplot(data = year4) +
+  geom_col(aes(x = Days, y = salinity_difference), color = "black") +
+  geom_vline(aes(xintercept = Days),
+               data = year4 %>% filter(NamedStorm == 1),
+             color = "blue") +
+  theme_bw()
+
+year5 <- subset(exploration_data, Year == 2014)
+ggplot(data = year5) +
+  geom_col(aes(x = Days, y = salinity_difference), color = "black") +
+  geom_vline(aes(xintercept = Days),
+               data = year5 %>% filter(NamedStorm == 1),
+             color = "blue") +
+  theme_bw()
+
+year6 <- subset(exploration_data, Year == 2015)
+ggplot(data = year6) +
+  geom_col(aes(x = Days, y = salinity_difference), color = "black") +
+  geom_vline(aes(xintercept = Days),
+               data = year6 %>% filter(NamedStorm == 1),
+             color = "blue") +
+  theme_bw()
+
+year7 <- subset(exploration_data, Year == 2016)
+ggplot(data = year7) +
+  geom_col(aes(x = Days, y = salinity_difference), color = "black") +
+  geom_vline(aes(xintercept = Days),
+               data = year7 %>% filter(NamedStorm == 1),
+             color = "blue") +
+  theme_bw()
+
+year8 <- subset(exploration_data, Year == 2017)
+ggplot(data = year8) +
+  geom_col(aes(x = Days, y = salinity_difference), color = "black") +
+  geom_vline(aes(xintercept = Days),
+               data = year8 %>% filter(NamedStorm == 1),
+             color = "blue") +
+  theme_bw()
+
+year9 <- subset(exploration_data, Year == 2018)
+ggplot(data = year9) +
+  geom_col(aes(x = Days, y = salinity_difference), color = "black") +
+  geom_vline(aes(xintercept = Days),
+               data = year9 %>% filter(NamedStorm == 1),
+             color = "blue") +
+  theme_bw()
+
+year10 <- subset(exploration_data, Year == 2019)
+ggplot(data = year10) +
+  geom_col(aes(x = Days, y = salinity_difference), color = "black") +
+  geom_vline(aes(xintercept = Days),
+               data = year10 %>% filter(NamedStorm == 1),
+             color = "blue") +
+  theme_bw()
+
+year11 <- subset(exploration_data, Year == 2020)
+ggplot(data = year11) +
+  geom_col(aes(x = Days, y = salinity_difference), color = "black") +
+  geom_vline(aes(xintercept = Days),
+               data = year11 %>% filter(NamedStorm == 1),
+             color = "blue") +
+  theme_bw()
+
+
+```
+
+Now need to look at these graphs and determine on average how many days after a named storm there is an impact on the salinity values. I will define "impact" as being more than a 5 unit difference from the mean value (avg_salinity).
+
+
+
+
+## Are Named Storm Numbers Increasing Over Time??
+
+I will make a new dataframe, storm_data, to determine whether or not named storms near the Duke Marine Lab have increased in frequency over time.
+
+```{r storm-data}
+storm_data <- data.frame("Year" = 2010:2020)
+storm_data
+```
+
+```{r Storm-Count}
+counter = 0
+for(i in 1:679) {
+  if(exploration_data$Year[i] == 2010 && exploration_data$NamedStorm[i] == 1)   {
+    counter = counter + 1
+  }
+  else{
+  }
+}
+print(counter)
+```
+
+I used the above code for each year to calculate the number of storms.
+
+```{r Storm-Count-Inputs}
+storm_data <- storm_data %>%
+  mutate(StormCount = case_when(
+    Year == 2010 ~ 2,
+    Year == 2011 ~ 1,
+    Year == 2012 ~ 1,
+    Year == 2013 ~ 0,
+    Year == 2014 ~ 1,
+    Year == 2015 ~ 1,
+    Year == 2016 ~ 4,
+    Year == 2017 ~ 2,
+    Year == 2018 ~ 3,
+    Year == 2019 ~ 2,
+    Year == 2020 ~ 1,
+  ))
+storm_data
+```
+
+```{r storm-visualization}
+ggplot(data = storm_data, mapping = aes(x = Year, y = StormCount)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_bw()
+```
+
+There is visual evidence that the number of storms are increasing over time. I will also create a linear regression model to look at the slope and allow us to predict future numbers of storms.
+
+```{r storm-lm}
+storm_lm <- lm(StormCount ~ Year, data=storm_data)
+print(storm_lm)
+```
+
+The slope is .1091, which means that the number of storms (on average) is increasing by .1091 per year. This means that over time there will be more storms, which in turn will cause greater impacts on salinity since after each storm salinity is at lower values for approximately 20 days after the named storm's occurrence. 
+
+```{r stormlm-test}
+stormlm_summary <- summary(storm_lm)  
+stormlm_summary
+stormlm_coeffs <- stormlm_summary$coefficients  
+beta.estimate <- stormlm_coeffs["Year", "Estimate"]  
+std.error <- stormlm_coeffs["Year", "Std. Error"]  
+t_value <- beta.estimate/std.error  
+p_value <- 2*pt(-abs(t_value), df=nrow(storm_data)-ncol(storm_data))
+f_statistic <- storm_lm$fstatistic[1]  
+f <- summary(storm_lm)$fstatistic  
+model_p <- pf(f[1], f[2], f[3], lower=FALSE)
+
+t_value
+p_value
+f_statistic
+f
+model_p
+```
+
+High t-value, which means that this model is not simply by chance. P-value is low which means that the the coefficients are significant. However, the R-Squared is only .1043. This means that this is not the strongest model. Even though there is not an extreme trend, I think there is still evidence that storm frequency is increasing.
+
+## Time Series Analysis of Storms
+
+```{r packages}
+install.packages("TTR")
+```
+
+
+```{r ts-storms}
+library(TTR)
+storms_ts <- ts(storm_data$StormCount, start = c(2010), frequency = 1)
+stormsSMA3 <- SMA(storms_ts, n=5)
+plot.ts(stormsSMA3)
+```
+
+```{r mann-kendall}
+storm_trend <- Kendall::MannKendall(storms_ts)
+summary(storm_trend)
+```
+
+Due to the high p-value, it is evident that there is not enough data to perform a truly meaningful time series analysis, but it can still help to visualize the trend.
+
+```{r forecast-storms}
+storms_ts %>% ggtsdisplay()
+```
+
+```{r storms-arima}
+auto.arima(storms_ts)
+```
+
+```{r}
+(fit_storm <- Arima(storms_ts, order=c(0,0,0)))
+autoplot(forecast(fit_storm))
+```
+
+We simply don't have enough evidence to forecast storm counts for the next ten years with only ten years worth of data.
+
+#Turbidity Time Series Analysis
+```{r turbidity-trend}
+ggplot(data = exploration_data, mapping = aes(x=Days, y=TurbidityMEAN)) +
+  geom_point() +
+  geom_smooth(method=lm) +
+  theme_bw()
+```
+An initial plotting of the turbidity data shows that there is not an evident change over time.
+
+```{r turbidity-ts}
+which(is.na(exploration_data$TurbidityMEAN))
+exploration_data2 <- exploration_data[-c(1:153), ]
+turbidity_ts <- ts(exploration_data2$TurbidityMEAN, start = c(2010,12), frequency = 52)
+turbidity_decomposed <- stl(turbidity_ts, s.window = "periodic")
+plot(turbidity_decomposed)
+```
+Like was originally done with the salinity data, I broke the turbidity time series object into compenents and then plotted them.
+```{r turbidity-components}
+turbidity_components <- as.data.frame(turbidity_decomposed$time.series[,1:3])
+turbidity_components <- 
+  mutate(turbidity_components,
+         Observed = exploration_data2$TurbidityMEAN,
+         Date = exploration_data2$Days)
+ggplot(turbidity_components) +
+  geom_line(aes(y=Observed,x=Date), size = 0.25) +
+  geom_line(aes(y=trend,x=Date), color = "hot pink") +
+  geom_hline(yintercept=0,lty=2)
+ggplot(turbidity_components) +
+  geom_line(aes(y=Observed,x=Date), size = 0.25) +
+  geom_line(aes(y=seasonal,x=Date), color = "hot pink") +
+  geom_hline(yintercept=0,lty=2) 
+```
+```{r turbidity-kendall}
+turb_trend1 <- Kendall::SeasonalMannKendall(turbidity_ts)
+turb_trend1
+summary(turb_trend1)
+```
+
+```{r turbidity-test}
+turb_trend2 <- trend::smk.test(turbidity_ts)
+turb_trend2
+```
+
+P-value is not small enough in either test to show a significant trend. This shows that turbidity is not dramatically changing over time, so it might have more short term changes related to storm events or other factors.
+
+```{r turbidity-plot}
+turbidity_ts %>% ggtsdisplay()
+```
+
+```{r turbidity-arima}
+auto.arima(turbidity_ts)
+```
+
+```{r turbidity-fit}
+(fit1 <- Arima(turbidity_ts, order=c(1,0,1), seasonal=c(0,1,1)))
+```
+
+```{r turbidity-fit-test}
+checkresiduals(fit1)
+```
+Passes the Ljung-Box test.
+
+```{r turbidity-ts-plot}
+ts2 <- autoplot(forecast(fit1)) + theme_Publication()
+ts2
+```
+
+```{r turbidity-storm}
+ggplot(data=exploration_data, mapping=aes(x= Days, y=TurbidityMEAN, col =highlight_flag)) +
+  geom_point(values = pal) +
+  theme_Publication()
+```
+
+Here we can see that some of the highest values were near a storm event. Again, I will run tests to see how long after a NamedStorm event there normally is a difference in means.
+
+```{r storm-length-turbidity}
+exploration_dataM <- exploration_data %>%
+  mutate(StormAftermathM = case_when(
+    highlight_flag == "TRUE" ~ 1,
+    highlight_flag == "FALSE" ~ 0))
+
+for(i in 1:679) {
+  if(exploration_dataM$highlight_flag[i] == "TRUE") {
+    exploration_dataM$StormAftermathM[i] <- 1
+    exploration_dataM$StormAftermathM[i + 1] <- 1
+    exploration_dataM$StormAftermathM[i + 2] <- 1
+    exploration_dataM$StormAftermathM[i + 3] <- 1
+    exploration_dataM$StormAftermathM[i + 4] <- 1
+    exploration_dataM$StormAftermathM[i + 5] <- 1
+    exploration_dataM$StormAftermathM[i + 6] <- 1
+    exploration_dataM$StormAftermathM[i + 7] <- 1
+    exploration_dataM$StormAftermathM[i + 8] <- 1
+    exploration_dataM$StormAftermathM[i + 9] <- 1
+    exploration_dataM$StormAftermathM[i + 10] <- 1
+    exploration_dataM$StormAftermathM[i + 11] <- 1
+    exploration_dataM$StormAftermathM[i + 12] <- 1
+    exploration_dataM$StormAftermathM[i + 13] <- 1
+    exploration_dataM$StormAftermathM[i + 14] <- 1
+    exploration_dataM$StormAftermathM[i + 15] <- 1
+    exploration_dataM$StormAftermathM[i + 16] <- 1
+    exploration_dataM$StormAftermathM[i + 17] <- 1
+    exploration_dataM$StormAftermathM[i + 18] <- 1
+    exploration_dataM$StormAftermathM[i + 19] <- 1
+  }
+  else{
+  }
+}
+```
+
+```{r pairwise-stormaftermath2}
+no_stormaftermath_turb <- subset(exploration_dataM,StormAftermathM=="0",select=c("TurbidityMEAN", "StormAftermathM"))
+stormaftermath_turb <- subset(exploration_dataM,StormAftermathM=="1",select=c("TurbidityMEAN", "StormAftermathM"))
+merged_stormaftermathturb<-rbind(no_stormaftermath_turb,stormaftermath_turb)
+wilcox.test(TurbidityMEAN~StormAftermathM,data=merged_stormaftermathturb)
+```
+
+The effects of storms on turbidity end a little earlier than the effects on salinity. There is only a significant difference in means with 19 days after a NamedStorm event, compared to the 21 days for salinity.
+
+#Temperature Time Series Analysis
+```{r temp-plot}
+ggplot(data = exploration_data, mapping = aes(x=Days, y=TemperatureMEAN)) +
+  geom_point() +
+  geom_smooth(method=lm) +
+  theme_bw()
+```
+
+An initial plot of the temperature data shows that there is a slight decrease over time, but nothing drastic. This is especially due to the seasonal component and the lack of more long term data.
+
+```{r temp-components}
+which(is.na(exploration_data$TemperatureMEAN))
+exploration_data3 <- exploration_data[-c(58,147,148,149,150,151,152,153), ]
+temp_ts <- ts(exploration_data3$TemperatureMEAN, start = c(2010,7), frequency = 52)
+temp_decomposed <- stl(temp_ts, s.window = "periodic")
+plot(temp_decomposed)
+```
+
+```{r temp-comp-plot}
+temp_components <- as.data.frame(temp_decomposed$time.series[,1:3])
+temp_components <- 
+  mutate(temp_components,
+         Observed = exploration_data3$TemperatureMEAN,
+         Date = exploration_data3$Days)
+ggplot(temp_components) +
+  geom_line(aes(y=Observed,x=Date), size = 0.25) +
+  geom_line(aes(y=trend,x=Date), color = "hot pink") +
+  geom_hline(yintercept=0,lty=2)
+ggplot(temp_components) +
+  geom_line(aes(y=Observed,x=Date), size = 0.25) +
+  geom_line(aes(y=seasonal,x=Date), color = "hot pink") +
+  geom_hline(yintercept=0,lty=2)
+```
+
+```{r temp-seas-adj}
+temp_seasadj <- temp_ts - temp_components$seasonal
+plot(temp_seasadj)
+```
+This adjusted the temperature time series in order to remove the seasonal component. 
+
+```{r temp-trend}
+temp_trend1 <- Kendall::SeasonalMannKendall(temp_seasadj)
+temp_trend1
+summary(temp_trend1)
+```
+
+```{r temp-trend2}
+temp_trend2 <- trend::smk.test(temp_seasadj)
+temp_trend2
+```
+
+Really large p-value for both tests. This means that there is not significant enough evidence of a trend.
+
+```{r temp-ts-plot}
+temp_seasadj %>% ggtsdisplay()
+```
+
+```{r temp-ts-diff}
+temp_seasadj %>% diff(lag=2) %>% diff() %>% ggtsdisplay()
+```
+```{r temp-arima}
+auto.arima(temp_seasadj)
+```
+
+```{r temp-fit}
+(fit2 <- Arima(temp_seasadj, order=c(5,0,2), seasonal=c(1,0,0)))
+```
+
+```{r temp-check}
+checkresiduals(fit2)
+```
+ 
+Passes the Ljung-Box test.
+
+```{r}
+ts3 <- autoplot(forecast(fit2)) + theme_Publication()
+ts3
+
+```
+
+
+#Final Figure Making for the Paper
+```{r packages}
+install.packages("ggpubr")
+```
+
+```{r load}
+library(ggpubr)
+```
+
+```{r figures1}
+compare_means(SalinityMEAN ~ StormAftermath4, data = exploration_data)
+p1 <- ggboxplot(exploration_data, x = "StormAftermath4", y = "SalinityMEAN",
+          color = "StormAftermath4", palette = "jco")
+#  Add p-value
+p1final <- p1 + stat_compare_means()
+# Change method
+p1 + stat_compare_means(method = "t.test")
+p1final
+
+compare_means(TurbidityMEAN ~ StormAftermathM, data = exploration_dataM)
+p2 <- ggboxplot(exploration_dataM, x = "StormAftermathM", y = "TurbidityMEAN",
+          color = "StormAftermathM", palette = "jco")
+#  Add p-value
+p2final <- p2 + stat_compare_means()
+p2final
+
+ggarrange(p1final, p2final, 
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+
+ggarrange(ts1, ts2,ts3,
+          labels = c("A", "B", "C")
+          ncol = 2, nrow = 2)
+```
+
+```{r figures2}
+ggarrange(ts1, ts2,ts3,
+          labels = c("A", "B", "C"),
+          ncol = 2, nrow = 2)
+```
+
+```{r more-packages}
+install.packages("ggcorrplot")
+install.packages("corrplot")
+library(ggcorrplot)
+library(corrplot)
+```
+
+```{r correlation-plots}
+
+corr_df1 <- exploration_data[, c("TurbidityMEAN", "bacteriaMEAN", "NamedStorm", "ChlExtractMEAN")]
+c1 <- ggcorr(corr_df1, label = TRUE, low = "steelblue", mid = "pink", high = "yellow")
+c1
+
+corr_df2 <- exploration_data[, c("NamedStorm", "TurbidityMEAN", "TemperatureMEAN", "SalinityMEAN")]
+c2 <- ggcorr(corr_df2, label = TRUE, low = "steelblue", mid = "pink", high = "yellow")
+c2
+
+ggarrange(c1, c2,
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+```
+

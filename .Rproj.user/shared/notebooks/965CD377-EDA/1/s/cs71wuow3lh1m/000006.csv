@@ -1,0 +1,6 @@
+"0","small_large_oxygen_sat <- pico1 %>% "
+"0","  filter(!is.na(OxygenSaturationMEAN))%>% "
+"0","  select(OxygenSaturationMEAN,Date, OxygenMEAN, TemperatureMEAN) %>% "
+"0","  arrange(OxygenSaturationMEAN) %>% "
+"0","  slice(1, 649)"
+"0","small_large_oxygen_sat"

@@ -1,0 +1,3 @@
+"0","pico1 <- pico %>% "
+"0","  mutate(Month1 = ifelse(Month < 10, paste0(""0"", Month), Month)) %>% "
+"0","  mutate(Day1 = ifelse(Day < 10, paste0(""0"", Day), Day))"

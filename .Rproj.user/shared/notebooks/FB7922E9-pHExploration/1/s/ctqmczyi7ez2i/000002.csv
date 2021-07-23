@@ -1,0 +1,4 @@
+"0","pico1$NamedStorm <- as.factor(pico1$NamedStorm)"
+"0","levels(pico1$NamedStorm) <- c(""No"", ""Yes"")"
+"0","pico2$NamedStorm <- as.factor(pico2$NamedStorm)"
+"0","levels(pico2$NamedStorm) <- c(""No"", ""Yes"")"

@@ -1,0 +1,4 @@
+"0","nh4_ph <- full_pHMEAN %>% "
+"0","  select(pHMEAN, NH4MEAN)"
+"0",""
+"0","ggcorr(nh4_ph, palette = ""RdBu"", label = TRUE)"

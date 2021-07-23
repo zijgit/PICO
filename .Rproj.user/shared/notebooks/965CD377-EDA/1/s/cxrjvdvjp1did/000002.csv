@@ -1,0 +1,3 @@
+"0","bacteria_ph_model <- lm(bacteriaMEAN~pHMEAN, data = pico1)"
+"0","tidy(bacteria_ph_model) %>% "
+"0","  kable(caption = ""Linear Model of Bacteria and pH"")"

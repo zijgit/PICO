@@ -1,0 +1,5 @@
+"0","full_falls <- pico2 %>% "
+"0","  filter(!is.na(FLGageHeightMean))"
+"0",""
+"0","falls.ts <- ts(full_falls$FLGageHeightMean, start = c(2010, 28), frequency = 52)"
+"0","plot(falls.ts)"

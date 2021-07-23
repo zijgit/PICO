@@ -1,0 +1,6 @@
+"0","ggplot(data = pH_dic_post_irene, aes(x = Date, y = DICMEAN, color = NamedStorm)) +"
+"0","  geom_point() +"
+"0","  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +"
+"0","  geom_hline(yintercept = 2081.081, linetype='dashed', col = 'black') +"
+"0","  labs(title = ""DIC Recorded for 36 Days after Hurricane Irene"") +"
+"0","  ylim(1000, 2200)"

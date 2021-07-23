@@ -1,0 +1,4 @@
+"0","neuse_Components <- as.data.frame(neuse.Decomposed$time.series[,1:3])"
+"0","neuse_Components <- mutate(neuse_Components,"
+"0","        Observed = full_neuse$NRKGageHeightMean,     "
+"0","        Days = full_neuse$Days)"

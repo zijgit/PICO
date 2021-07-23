@@ -1,0 +1,3 @@
+"0","decompose_dic = decompose(dic.ts, ""additive"")"
+"0","dic_seasadj = dic.ts - dic_Components$seasonal"
+"0","plot(dic_seasadj)"

@@ -1,0 +1,3 @@
+"0","decompose_neuse = decompose(neuse.ts, ""additive"")"
+"0","neuse_seasadj = neuse.ts - neuse_Components$seasonal"
+"0","plot(neuse_seasadj)"

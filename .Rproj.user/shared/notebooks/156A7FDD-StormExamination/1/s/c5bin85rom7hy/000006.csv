@@ -1,0 +1,2 @@
+"0","ggplot(data = pico_storm, aes(x = Days, y = PRCPMEAN, color = NamedStorm)) +"
+"0","  geom_point()"

@@ -1,0 +1,4 @@
+"0","o_pH_bacteria <- pico1 %>% "
+"0","  select(bacteriaMEAN, OxygenMEAN, pHMEAN)"
+"0",""
+"0","ggcorr(o_pH_bacteria, palette = ""RdBu"", label = TRUE)"

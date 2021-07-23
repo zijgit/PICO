@@ -1,0 +1,3 @@
+"0","NH4_ph_model <- lm(pHMEAN~NH4MEAN, data = pico1)"
+"0","tidy(NH4_ph_model) %>% "
+"0","  kable(caption = ""Linear Model of pH and NH4"")"

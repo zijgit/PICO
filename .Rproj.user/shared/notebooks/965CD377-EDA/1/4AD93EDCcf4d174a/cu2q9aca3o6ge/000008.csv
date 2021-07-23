@@ -1,0 +1,4 @@
+"0"," p <- pairwise.wilcox.test(pico1$pHMEAN, pico1$NamedStorm, "
+"0","                      paired = FALSE)"
+"0","tidy(p) %>% "
+"0","  kable(caption = ""Pairwise Wilcox Test"")"

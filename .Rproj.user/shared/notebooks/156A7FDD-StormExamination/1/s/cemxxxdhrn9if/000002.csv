@@ -1,0 +1,5 @@
+"0","ph_rain <- pico_storm %>% "
+"0","  select(pHMEAN, PRCPMEAN)"
+"0",""
+"0","phcorr <- ggcorr(ph_rain, palette = ""RdBu"", label = TRUE)"
+"0","phplot+phcorr"

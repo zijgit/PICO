@@ -1,0 +1,3 @@
+"0","pH_model <- lm(pHMEAN ~ Days, data = pico1)"
+"0","tidy(pH_model) %>% "
+"0","  kable(caption = ""Linear Model of pH and Days"")"

@@ -1,0 +1,2 @@
+"0","dicDiff<-t.test(DICMEAN ~ NamedStorm, data=full_DICMEAN)"
+"0","tidy(dicDiff)"

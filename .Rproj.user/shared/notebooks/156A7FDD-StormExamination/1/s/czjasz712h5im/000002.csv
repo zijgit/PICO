@@ -1,0 +1,6 @@
+"0","weather <- weather %>% "
+"0","  filter(!is.na(PRCP))"
+"0","weather1 <- weather %>% "
+"0","  group_by(DATE) %>% "
+"0","  summarise(mean(PRCP)) %>% "
+"0","  rename(PRCPMEAN = ""mean(PRCP)"")"

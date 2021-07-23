@@ -1,0 +1,4 @@
+"0","pico1_Components <- as.data.frame(pico1.Decomposed$time.series[,1:3])"
+"0","pico1_Components <- mutate(pico1_Components,"
+"0","        Observed = no_missing_pHMEAN$pHMEAN,     "
+"0","        Days = no_missing_pHMEAN$Days)"

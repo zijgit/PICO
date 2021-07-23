@@ -1,0 +1,2 @@
+"0","par(mfrow=c(1,2))"
+"0","ACF_Plot <- Acf(full_DICMEAN$DICMEAN, plot = TRUE)"

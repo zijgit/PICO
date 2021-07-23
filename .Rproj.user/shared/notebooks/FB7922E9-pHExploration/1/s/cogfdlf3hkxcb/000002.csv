@@ -1,0 +1,7 @@
+"0","pico2 <- left_join(pico1, neuseRiver)"
+"2","Joining, by = ""Date""
+"
+"0","pico2 <- left_join(pico2, fallsLake)"
+"2","Joining, by = ""Date""
+"
+"0","view(pico2)"

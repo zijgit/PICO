@@ -1,0 +1,5 @@
+"0","ggplot(data=pico1, aes(x=Days, y= pHMEAN, color = NamedStorm)) +"
+"0","  geom_point() +"
+"0","  labs(title = ""pHMEAN Plotted against Days"") +"
+"0","  theme_Publication()"
+"2","`legend.margin` must be specified using `margin()`. For the old behavior use legend.spacing"

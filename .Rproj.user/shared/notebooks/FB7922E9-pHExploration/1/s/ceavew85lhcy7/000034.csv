@@ -1,0 +1,3 @@
+"0","decompose_pico1 = decompose(pico1.ts, ""additive"")"
+"0","pico1_seasadj = pico1.ts - pico1_Components$seasonal"
+"0","plot(pico1_seasadj)"

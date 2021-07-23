@@ -1,0 +1,8 @@
+"0","day_inc <- 14"
+"0","for(x in (p+1):(p+(z-q))){"
+"0","  if(is.na(florence[x, 3])){"
+"0","  florence[x, 6] <- day_inc"
+"0","  florence[x, 5] <- 9"
+"0","  }"
+"0","  day_inc = day_inc + 1"
+"0","}"

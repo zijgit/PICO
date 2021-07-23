@@ -1,0 +1,5 @@
+"0","full_DICMEAN <- pico1 %>% "
+"0","  filter(!is.na(DICMEAN))"
+"0","ggplot(data = full_DICMEAN, aes(x = NamedStorm, y = DICMEAN)) +"
+"0","  geom_boxplot() +"
+"0","  labs(title = ""Difference in Mean DIC"")"

@@ -1,0 +1,4 @@
+"0","ph_dic <- full_pHMEAN %>% "
+"0","  select(pHMEAN, DICMEAN)"
+"0",""
+"0","ggcorr(ph_dic, palette = ""RdBu"", label = TRUE)"

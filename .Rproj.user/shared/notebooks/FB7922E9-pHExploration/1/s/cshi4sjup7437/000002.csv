@@ -1,0 +1,2 @@
+"0","full_pHMEAN <-  pico1 %>% "
+"0","  filter(!is.na(pHMEAN))"

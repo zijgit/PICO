@@ -1,0 +1,4 @@
+"0","model1 <- lm(pHMEAN ~ NamedStorm + TemperatureMEAN + NamedStorm*TemperatureMEAN + deltaCO2 + "
+"0","               deltaCO2*NamedStorm + NH4MEAN + NH4MEAN*NamedStorm, data = full_model_data)"
+"0","tidy(model1) %>% "
+"0","  kable(caption = ""Multiple Linear Regression Model for pH"")"

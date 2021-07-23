@@ -1,0 +1,2 @@
+"0","interpolationpH <- lm(pHMEAN ~ Day, data = mlrmodel)"
+"0","interpolationdic <- lm(DICMEAN ~ Day, data = mlrmodel)"

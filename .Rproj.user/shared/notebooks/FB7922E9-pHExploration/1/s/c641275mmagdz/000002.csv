@@ -1,0 +1,3 @@
+"0","tidy(SeasonalMannKendall(weeklypH.ts)) %>% "
+"0","  select(p.value, kendall_score, statistic) %>% "
+"0","  kable(caption = ""Seasonal Mann Kendall test for pH"")"

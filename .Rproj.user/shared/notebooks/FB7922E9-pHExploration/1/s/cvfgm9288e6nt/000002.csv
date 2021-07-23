@@ -1,0 +1,2 @@
+"0","falls.Decomposed <- stl(falls.ts, s.window = ""periodic"")"
+"0","plot(falls.Decomposed)"

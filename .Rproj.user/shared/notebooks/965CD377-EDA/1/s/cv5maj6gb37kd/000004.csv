@@ -1,0 +1,1 @@
+"0","pico1.ts <- ts(full_pHMEAN$pHMEAN, start = c(2010, 7), frequency = 52)"

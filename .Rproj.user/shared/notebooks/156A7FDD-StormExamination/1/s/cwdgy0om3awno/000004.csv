@@ -1,0 +1,2 @@
+"0","ggplot(data = weather1, aes(x = PRCPMEAN)) +"
+"0","  geom_histogram()"

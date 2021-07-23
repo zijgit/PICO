@@ -1,0 +1,2 @@
+"0","ggplot(data = weather2, aes(x = DATE, y = PRCPMEAN, color = Florence)) +"
+"0","  geom_point()"

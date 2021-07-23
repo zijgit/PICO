@@ -1,0 +1,4 @@
+"0","ggplot(data = pico1, aes(y = pHMEAN, x = DICMEAN)) +"
+"0","  geom_point() +"
+"0","  labs(title = "" Relationship between DIC and pH"") +"
+"0","  geom_smooth(method = ""lm"", se = FALSE)"

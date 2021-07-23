@@ -1,0 +1,4 @@
+"0"," z <- pairwise.wilcox.test(pico1$OxygenSaturationMEAN, pico1$NamedStorm, "
+"0","                      paired = FALSE)"
+"0","tidy(z) %>% "
+"0","  kable(caption = ""Pairwise Wilcox Test"")"

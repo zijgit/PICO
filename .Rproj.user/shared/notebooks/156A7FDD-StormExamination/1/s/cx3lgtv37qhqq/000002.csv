@@ -1,0 +1,1 @@
+"0","dic.Decomposed <- stl(dic.ts, s.window = ""periodic"")"

@@ -1,0 +1,3 @@
+"0","ggplot(data=pico1, aes(x=TemperatureMEAN, y= pHMEAN, color = NamedStorm)) +"
+"0","  geom_point() +"
+"0","  labs(title = ""pHMEAN Plotted against Temperature"")"

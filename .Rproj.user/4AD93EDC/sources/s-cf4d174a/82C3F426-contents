@@ -1,0 +1,542 @@
+---
+title: "StormExamination"
+author: "Alexandra Lawrence"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r load-packages, warning = FALSE, message = FALSE}
+library(tidyverse)
+library(broom)
+library(patchwork)
+library(knitr)
+library(GGally)
+library(tseries)
+library(Kendall)
+library(ggplot2)
+library(forecast)
+library(lubridate)
+library(fpp)
+library(trend)
+```
+
+```{r load-data, message = FALSE}
+pico <- read.table("data/allpico-dataexport.txt", header = TRUE, 
+                        stringsAsFactors = FALSE )
+weather <- read.csv("data/2639535.csv", header = TRUE)
+```
+
+```{r average-precipitation}
+weather <- weather %>% 
+  filter(!is.na(PRCP))
+weather1 <- weather %>% 
+  group_by(DATE) %>% 
+  summarise(mean(PRCP)) %>% 
+  rename(PRCPMEAN = "mean(PRCP)")
+```
+
+```{r adding-storm-indicator}
+weather2 <- weather1 %>% 
+  mutate(Florence = case_when(DATE == "2018-09-14" ~  "Yes")) 
+##weather1$NamedStorm <- as.factor(weather1$NamedStorm)
+##levels(weather1$NamedStorm) <- c("Yes", "No")
+```
+
+
+```{r remove-NAs}
+pico[pico =="NaN"] <- NA
+```
+
+```{r}
+pico1 <- pico %>% 
+  mutate(Month1 = ifelse(Month < 10, paste0("0", Month), Month)) %>% 
+  mutate(Day1 = ifelse(Day < 10, paste0("0", Day), Day))
+```
+
+```{r convert-time}
+pico1 <- pico1 %>% 
+  unite("Date", c("Month1", "Day1", "Year"), sep = "-", remove = FALSE) %>% 
+  arrange(Days)
+```
+
+```{r convert-time2}
+pico1 <- pico1 %>% 
+  unite("DATE", c("Year", "Month1", "Day1"), sep = "-", remove = FALSE) %>% 
+  arrange(Days)
+```
+
+```{r factor-NamedStorm}
+pico1$NamedStorm <- as.factor(pico1$NamedStorm)
+levels(pico1$NamedStorm) <- c("No", "Yes")
+```
+
+```{r join-weather-data}
+pico_storm <- left_join(pico1, weather1)
+```
+
+
+```{r convert-time3}
+pico1 <- pico1 %>% 
+  unite("Date", c("Year", "Month1", "Day1"), sep = "/", remove = FALSE) %>% 
+  arrange(Days)
+```
+
+
+```{r no-missing-ph-values}
+full_pHMEAN <-  pico1 %>% 
+  filter(!is.na(pHMEAN))
+```
+
+```{r no-missing-dic-values}
+full_DICMEAN <-  pico1 %>% 
+  filter(!is.na(DICMEAN))
+```
+
+# Precipitation in Carteret County
+
+In order to measure precipitation, I am using the precipitation data from the NOAA for Carteret County. This data includes recordings from multiple stations per day, and I will be using a variable I created which takes the average of each station.
+
+```{r visualizing-distribution}
+ggplot(data = weather1, aes(x = PRCPMEAN)) +
+  geom_histogram()
+```
+
+The distribution for mean precipitation is right skewed with the majority of days having no precipitation.
+
+```{r weather1-plot}
+ggplot(data = weather2, aes(x = DATE, y = PRCPMEAN, color = Florence)) +
+  geom_point()
+```
+
+The maximum point occurs on 9/14/2018, when Hurricane Florence actually hits the coast of North Carolina. However, the pH value for Florence is recorded on 9/19/2018.
+
+```{r rainfall-over-time}
+ggplot(data = pico_storm, aes(x = Days, y = PRCPMEAN, color = NamedStorm)) +
+  geom_point()
+```
+
+The mean precipitation also does not appear to be seasonal. Additionally, when looking at the rain data printed by day, it is apparent that the day when storms are recorded in the pico dataset might not be the day that the storm actually hit, making it more difficult to look at the relationship between precipitation and pH
+
+```{r ph-rain}
+phplot <- ggplot(data = pico_storm, aes(x = PRCPMEAN, y = pHMEAN, color = NamedStorm)) +
+  geom_point()
+```
+
+```{r corr-ph-rain}
+ph_rain <- pico_storm %>% 
+  select(pHMEAN, PRCPMEAN)
+
+phcorr <- ggcorr(ph_rain, palette = "RdBu", label = TRUE)
+phplot+phcorr
+```
+
+According to this plot, there does not appear to be a linear relationship between the precipitation and pH recording. Additionally there is only a very weak, negative correlation between pH and precipitation.
+
+```{r dic-rain}
+p <- ggplot(data = pico_storm, aes(x = PRCPMEAN, y = DICMEAN, color = NamedStorm)) +
+  geom_point()
+```
+
+```{r corr-dic-rain}
+dic_rain <- pico_storm %>% 
+  select(DICMEAN, PRCPMEAN)
+
+g <- ggcorr(dic_rain, palette = "RdBu", label = TRUE)
+
+p+g
+```
+
+There does not appear to be a linear relationship between precipitation and DIC. Additionally, there is no correlation between precipitation and DIC.
+
+## Lagged Correlation
+
+```{r time-series-pHMEAN}
+pico1.ts <- ts(full_pHMEAN$pHMEAN, start = c(2010, 28), frequency = 52)
+```
+
+```{r decomposed-ph-ts}
+pico1.Decomposed <- stl(pico1.ts, s.window = "periodic")
+```
+
+```{r changing-decomposed-dataframe}
+pico1_Components <- as.data.frame(pico1.Decomposed$time.series[,1:3])
+pico1_Components <- mutate(pico1_Components,
+        Observed = full_pHMEAN$pHMEAN,     
+        Days = full_pHMEAN$Days)
+```
+
+```{r remove-seasonality}
+decompose_pico1 = decompose(pico1.ts, "additive")
+pico1_seasadj = pico1.ts - pico1_Components$seasonal
+```
+
+```{r timeseries-dic}
+dic.ts <- ts(full_DICMEAN$DICMEAN, start = c(2010, 28), frequency = 52)
+```
+
+```{r dic-decomposed}
+dic.Decomposed <- stl(dic.ts, s.window = "periodic")
+```
+
+```{r changing-decomposed-dataframe-dic}
+dic_Components <- as.data.frame(dic.Decomposed$time.series[,1:3])
+dic_Components <- mutate(dic_Components,
+        Observed = full_DICMEAN$DICMEAN,     
+        Days = full_DICMEAN$Days)
+```
+
+```{r remove-seasonality-dic}
+decompose_dic = decompose(dic.ts, "additive")
+dic_seasadj = dic.ts - dic_Components$seasonal
+```
+
+```{r precipitation-time-series}
+prcp.ts <- ts(pico_storm$PRCPMEAN, start = c(2010, 28), frequency = 52)
+```
+
+```{r decomposed-neuse-ts}
+prcp.Decomposed <- stl(prcp.ts, s.window = "periodic")
+```
+
+```{r stationary-test-prcp}
+adf.test(prcp.ts)
+kpss.test(prcp.ts)
+```
+
+According to these tests, PRCPMEAN is stationary
+
+```{r laggedCorrelation}
+ccf_vals <- ccf(pico1_seasadj, prcp.ts) 
+ccf_vals
+```
+This ACF plot shows the lagged correlations between precipitation and and pH. While the correlations are strongest for around -0.25 and 0.3, the correlations are still pretty insignificant, as these values are around -0.15 and 0.15.
+
+```{r laggedCorrelation2}
+ccf_vals_2 <- ccf(dic_seasadj, prcp.ts) 
+ccf_vals_2
+```
+This ACF plot displays the lagged correlations between precipitation and DIC. The positive correlations are strongest around -0.45 and -0.3, and the negative correlations are strongest around 0.275. However, similar to pH, the most extreme values are still around 0.10. This indicates that there is not much of a correlation.
+
+## Correlation With Predicted pH Values
+
+```{r smaller-pico-set}
+pico_ph_dic <- pico1 %>%
+  select(DATE, pHMEAN, DICMEAN, Month, Day)
+```
+
+```{r joining}
+all_rain <- left_join(weather1, pico_ph_dic)
+```
+
+```{r predicting-phsmall}
+predict_ph <- lm(pHMEAN ~ Month, data = all_rain)
+predict_dic <- lm(DICMEAN ~ Month, data = all_rain)
+```
+
+```{r data-for-extrapolation1}
+before_florence <- all_rain %>% 
+  filter(DATE > "2018-09-06" & DATE < "2018-09-14")
+```
+
+```{r data-for-interpolation}
+after_florence <- all_rain %>% 
+  filter(DATE > "2018-09-13" & DATE < "2018-10-25")
+```
+
+```{r data-for-extrapolation}
+florence <- all_rain %>% 
+  filter(DATE > "2018-09-06" & DATE < "2018-10-25")
+```
+
+```{r adding-missing-values-with-model}
+num <- 7
+for(x in 1:nrow(before_florence)){
+  if(is.na(florence[x, 3])){
+    pred<-predict(predict_ph, data.frame(Month = 9))
+    florence[x, 6] <- num
+    florence[x, 3] <- (pred)
+    florence[x, 5] <- 9}
+  num <- num + 1
+}
+for(x in 1:nrow(before_florence)){
+  if(is.na(florence[x, 4])){
+    pred1<-predict(predict_dic, data.frame(Month = 9))
+    florence[x, 4] <- (pred1)}
+}
+```
+
+```{r}
+day_inc <- 14
+for(x in (p+1):(p+(z-q))){
+  if(is.na(florence[x, 3])){
+  florence[x, 6] <- day_inc
+  florence[x, 5] <- 9
+  }
+  day_inc = day_inc + 1
+}
+```
+
+```{r}
+mlrmodel <- florence %>% 
+  filter(DATE > "2018-09-12" & DATE < "2018-09-20")
+```
+
+```{r}
+interpolationpH <- lm(pHMEAN ~ Day, data = mlrmodel)
+interpolationdic <- lm(DICMEAN ~ Day, data = mlrmodel)
+```
+
+```{r}
+for(x in (p+1):(p+(z-q))){
+  if(is.na(florence[x, 3])){
+  pred2<-predict(interpolationpH, data.frame(Day = florence[x, 6]))
+  florence[x, 3] <- pred2
+  pred3<-predict(interpolationdic, data.frame(Day = florence[x, 6]))
+  florence[x, 4] <- pred3
+  }
+}
+```
+
+
+```{r}
+september_rain <- all_rain %>% 
+  filter(Month == 9)
+ggplot(data = florence, aes(y = pHMEAN, x = DATE)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  geom_point()
+```
+
+```{r}
+predictedpH.ts <- ts(florence$pHMEAN, start = c(2018, 9), frequency = 365)
+```
+
+```{r}
+predicteddic.ts <- ts(florence$DICMEAN, start = c(2018, 9), frequency = 365)
+```
+
+```{r}
+predictedprecip.ts <- ts(florence$PRCPMEAN, start = c(2018, 9), frequency = 365)
+```
+
+```{r}
+ccf_vals <- ccf(predictedpH.ts, predictedprecip.ts) 
+ccf_vals
+```
+
+```{r}
+ccf_vals <- ccf(predicteddic.ts, predictedprecip.ts) 
+ccf_vals
+```
+
+
+\newpage
+
+# Recorded Storms in Data
+
+Dates of a Named Storm Occurrence: 
+
+```{r storm-dates}
+pico_yes_storms <- pico1 %>% 
+  filter(NamedStorm == "Yes") %>% 
+  select(Date, NamedStorm)
+kable(pico_yes_storms)
+```
+
+```{r stormByYearGraph, warning = FALSE, message = FALSE, fig.height = 3, fig.width =5}
+pico_all_storms <- pico1 %>% 
+  filter(NamedStorm == "Yes") %>% 
+  group_by(Year) %>% 
+  count(NamedStorm)
+ggplot(data = pico_all_storms, aes(x = Year, y = n)) +
+  geom_point(size = 2) +
+  labs(title = "Number of Named Storms per Year", y = "Number of Named Storms") +
+  xlim(2010, 2020) +
+  ylim(0, 5) +
+  scale_x_discrete(limits=c(2010,2011,2012, 2013,2014,2015, 2016, 2017, 2018, 2019, 2020)) +
+  geom_point(aes(x=2013, y=0), colour="black")
+```
+
+# Closer Look at Measurements After Storms
+
+## Hurricane Irene
+
+```{r ph-dic-post-irene}
+pH_dic_post_irene <- pico1 %>% 
+  select(Date, pHMEAN, DICMEAN, NamedStorm) %>% 
+  filter(Date > "2011/08/24" & Date < "2011/09/30")
+```
+
+```{r august-frame-ph, results = "hide"}
+august <- pico1 %>% 
+  filter(Month == "8") %>% 
+  filter(!is.na(pHMEAN))
+mean(august$pHMEAN)
+```
+
+```{r plot-ph-post-irene}
+ggplot(data = pH_dic_post_irene, aes(x = Date, y = pHMEAN, color = NamedStorm)) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  geom_hline(yintercept = 7.934427, linetype='dashed', col = 'black') +
+  labs(title = "pH Recorded for a Month after Hurricane Irene") + 
+  ylim(7.5, 8.0)
+```
+
+The mean pH for August is about 7.93, and it is represented by a dashed line. When Hurricane Irene occurs, the pH slightly drops below average, but it is close to the average again by the next recording.
+
+```{r august-frame-dic, results = "hide"}
+august <- pico1 %>% 
+  filter(Month == "8") %>% 
+  filter(!is.na(DICMEAN))
+mean(august$DICMEAN)
+```
+
+```{r plot-dic-post-irene}
+ggplot(data = pH_dic_post_irene, aes(x = Date, y = DICMEAN, color = NamedStorm)) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  geom_hline(yintercept = 2081.081, linetype='dashed', col = 'black') +
+  labs(title = "DIC Recorded for 36 Days after Hurricane Irene") +
+  ylim(1000, 2200)
+```
+
+The dashed line represents the mean DIC for the month of August, about 2081.1. The recorded DIC appears to be slightly lower than the average for this recording, but it is back to the average by the next data collection.
+
+
+## Hurrricane Sandy
+
+```{r november-frame-ph, results = "hide"}
+november <- pico1 %>% 
+  filter(Month == "11") %>% 
+  filter(!is.na(pHMEAN))
+mean(november$pHMEAN)
+```
+
+```{r november-frame-dic, results = "hide"}
+november <- pico1 %>% 
+  filter(Month == "11") %>% 
+  filter(!is.na(DICMEAN))
+mean(november$DICMEAN)
+```
+
+```{r pH-dic-after-sandy}
+pH_dic_post_sandy <- pico1 %>% 
+  select(Date, pHMEAN, DICMEAN, NamedStorm) %>% 
+  filter(Date > "2012/10/28" & Date < "2012/11/20")
+```
+
+```{r plot-ph-post-sandy}
+ggplot(data = pH_dic_post_sandy, aes(x = Date, y = pHMEAN, color = NamedStorm)) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  geom_hline(yintercept = 7.968201, linetype='dashed', col = 'black') +
+  geom_hline(yintercept = 8.075622, linetype='solid', col = 'black') +
+  labs(title = "pH Recorded after Sandy")
+```
+
+Surprisingly, the recorded pH for Hurricane Sandy is slightly above the average for October (about 7.968) However, it is lower than the mean for November (about 8.076). This could be caused by the fact that Sandy was further out to sea when it affected the North Carolina coast.
+
+```{r plot-dic-post-sandy}
+ggplot(data = pH_dic_post_sandy, aes(x = Date, y = DICMEAN, color = NamedStorm)) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  geom_hline(yintercept = 1966.7, linetype='dashed', col = 'black') +
+  geom_hline(yintercept = 2000.039, linetype='solid', col = 'black') +
+  labs(title = "DIC Recorded after Sandy")
+```
+
+The DIC is below October's average during the storm. However, it is back to above both October and November's averages after the storm. Again, this may be caused by the fact that Sandy was farther from the coast than other storms.
+
+## Hurricane Florence (9/19/2018) and Tropical Storm Michael (10/11/2018)
+
+```{r pH-dic-after-florence}
+pH_dic_post_florence <- pico1 %>% 
+  select(Date, pHMEAN, DICMEAN, NamedStorm) %>% 
+  filter(Date > "2018/09/13" & Date < "2018/10/30")
+```
+
+```{r september-frame-ph, results = "hide"}
+september <- pico1 %>% 
+  filter(Month == "9") %>% 
+  filter(!is.na(pHMEAN))
+mean(september$pHMEAN)
+```
+
+```{r october-frame-ph, results = "hide"}
+october <- pico1 %>% 
+  filter(Month == "10") %>% 
+  filter(!is.na(pHMEAN))
+mean(october$pHMEAN)
+```
+
+```{r plot-ph-post-florence}
+ggplot(data = pH_dic_post_florence, aes(x = Date, y = pHMEAN, color = NamedStorm)) +
+  geom_point() +
+  geom_hline(yintercept = 7.905, linetype='dashed', col = 'black') +
+  geom_hline(yintercept = 7.968201, linetype='solid', col = 'black') +
+  labs(title = "pH Recorded Daily for 36 Days after Hurricane Florence") +
+  theme_Publication() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+The mean pH value for September is around 7.905, and the mean pH value for October is around 7.97. I have added a dashed line representing September's average and a solid line representing October's average on the plot of the daily recorded pH values for the 36 days recorded after Hurricane Florence. According to this plot, it takes about five days for the pH to rise back to approximately the average level. On October 11th, Hurricane Michael hit the Carolinas as a tropical storm. However, the pH appears to remain steady for four days before dipping slightly for four days and rebounding to the October's average. This could be a late affect from the storm, or it could be caused by other factors such as the tide.
+
+```{r september-frame-dic, results = "hide"}
+september <- pico1 %>% 
+  filter(Month == "9") %>% 
+  filter(!is.na(DICMEAN))
+median(september$DICMEAN)
+```
+
+```{r october-frame-dic, results = "hide"}
+october <- pico1 %>% 
+  filter(Month == "10") %>% 
+  filter(!is.na(DICMEAN))
+median(october$DICMEAN)
+```
+
+```{r plot-dic-post-florence}
+ggplot(data = pH_dic_post_florence, aes(x = Date, y = DICMEAN, color = NamedStorm)) +
+  geom_point() +
+  theme_Publication() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  geom_hline(yintercept = 1957.096, linetype='dashed', col = 'black') +
+  geom_hline(yintercept = 1966.7, linetype='solid', col = 'black') +
+  labs(title = "DIC Recorded for 36 Days after Hurricane Florence")
+```
+
+Because DIC appears to be much more left skewed for recordings taken in September and October, I have used the median value to best approximate the average. The dashed line represents the September's median of about 1957.1 and the solid line represents October's median, around 1966.7. After Hurricane Florence hits, it takes seventeen days to return to the median value for September. After Hurricane Michael hits the Carolinas as a tropical storm, DIC levels remain constant for around five days before dipping below the median for five days, and returning to the line. Again this may be a result of the storm or other factors such as the tide.
+
+
+## Hurricane Dorian
+
+```{r pH-dic-after-isaias}
+pH_dic_post_dorian <- pico1 %>% 
+  select(Date, pHMEAN, DICMEAN, NamedStorm) %>% 
+  filter(Date > "2019/09/06" & Date < "2019/09/27")
+```
+```{r dorian-ph}
+ggplot(data = pH_dic_post_dorian, aes(x = Date, y = pHMEAN, color = NamedStorm)) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  geom_hline(yintercept = 7.905, linetype='dashed', col = 'black') +
+  labs(title = "pH Recorded Daily for 18 Days after Hurricane Dorian")
+```
+
+The dashed line represents the average value of pH for September, about 7.905. As seen by the graph, it takes about seven days for the pH to return to September's average. The pH does not appear to be affected by the other storm (possibly Hurricane Humberto)
+
+```{r dorian-dic}
+ggplot(data = pH_dic_post_dorian, aes(x = Date, y = DICMEAN, color = NamedStorm)) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+ geom_hline(yintercept = 1957.096, linetype='dashed', col = 'black') +
+  labs(title = "DIC Recorded Daily for 18 Days after Hurricane Dorian")
+```
+
+It takes about eight days for the DIC levels to return to the mean for September, about 1957.096, after Hurricane Dorian. For the other storm, DIC levels remain below average for about six days, but they begin decreasing before the storm (possible Hurricane Humberto) is recorded.
+

@@ -1,0 +1,8 @@
+"0","ggplot(data = pH_dic_post_florence, aes(x = Date, y = pHMEAN, color = NamedStorm)) +"
+"0","  geom_point() +"
+"0","  geom_hline(yintercept = 7.905, linetype='dashed', col = 'black') +"
+"0","  geom_hline(yintercept = 7.968201, linetype='solid', col = 'black') +"
+"0","  labs(title = ""pH Recorded Daily for 36 Days after Hurricane Florence"") +"
+"0","  theme_Publication() +"
+"0","  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))"
+"2","`legend.margin` must be specified using `margin()`. For the old behavior use legend.spacing"

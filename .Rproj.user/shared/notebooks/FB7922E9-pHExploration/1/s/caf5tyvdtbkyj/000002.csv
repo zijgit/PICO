@@ -1,0 +1,4 @@
+"0","falls_Components <- as.data.frame(falls.Decomposed$time.series[,1:3])"
+"0","falls_Components <- mutate(falls_Components,"
+"0","        Observed = full_falls$FLGageHeightMean,     "
+"0","        Days = full_falls$Days)"

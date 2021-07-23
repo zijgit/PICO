@@ -1,0 +1,3 @@
+"0","t <- t.test(pico1$pHMEAN~pico1$NamedStorm)"
+"0","tidy(t) %>% "
+"0","  select(p.value, statistic, conf.low, conf.high)"

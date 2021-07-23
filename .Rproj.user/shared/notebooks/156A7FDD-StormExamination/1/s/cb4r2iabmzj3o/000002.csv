@@ -1,0 +1,8 @@
+"0","october <- pico1 %>% "
+"0","  filter(Month == ""10"") %>% "
+"0","  filter(!is.na(pHMEAN))"
+"0","mean(october$pHMEAN)"
+"1","[1]"
+"1"," 7.968201"
+"1","
+"

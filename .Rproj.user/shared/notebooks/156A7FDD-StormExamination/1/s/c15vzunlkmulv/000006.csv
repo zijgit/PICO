@@ -1,0 +1,2 @@
+"0","predictedpH.ts <- ts(florence$pHMEAN, start = c(2018, 9), frequency = 365)"
+"0","plot(predictedpH.ts)"

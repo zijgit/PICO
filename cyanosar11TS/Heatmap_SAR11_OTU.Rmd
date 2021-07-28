@@ -1,0 +1,214 @@
+---
+title: "Heatmap_SAR11_OTU"
+author: "Medy Mu"
+date: "1/26/2021"
+output: pdf_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+library(stats)
+library("RColorBrewer")
+library("gplots")
+```
+
+```{r}
+cyanobacteria_data <- read.csv("~/Downloads/SAR11_OTU.csv")
+environmental_data <- read.csv("~/Downloads/ENvironmental data.csv")
+```
+
+
+```{r}
+cyanobacteria_data <- read.csv("~/Downloads/SAR11_OTUs_with_order.csv")
+environmental_data <- read.csv("~/Downloads/ENvironmental data.csv")
+```
+
+```{r}
+abundance.matrix<- cyanobacteria_data[,2:152]
+rownames(abundance.matrix) <- cyanobacteria_data$X.OTU_ID
+```
+
+```{r}
+abundance.matrix2 <- log2(abundance.matrix +1)
+```
+
+```{r}
+#data.prop <- abundance.matrix2/colSums(abundance.matrix2)
+```
+
+```{r}
+scaleyellowred <- colorRampPalette(c("lightyellow", "red"), space = "rgb")(100)
+```
+
+```{r}
+col <- colorRampPalette(rev(brewer.pal(10, "RdYlBu")))(256)
+```
+
+```{r}
+pdf(file ="~/Downloads/sar11_OTU_heatmap",
+    width = 20,
+    height = 12)
+```
+
+```{r}
+heatmap.2(as.matrix(abundance.matrix2),
+  main = "Heatmap of SAR11 Oligotypes", # heat map title
+  xlab = "Samples",
+  ylab = "Oligotypes",
+  cexCol =0.5,
+  keysize = 1,
+  lhei = c(1,7),
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(8,8),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  dendrogram="row",     # only draw a row dendrogram
+  Colv="NA")  
+```
+
+```{r}
+heatmap.2(as.matrix(abundance.matrix2),
+  main = "Heatmap of SAR11 OTUs", # heat map title
+  xlab = "Samples",
+  ylab = "OTUs",
+  cexCol =0.5,
+  cexRow = 0.5,
+  keysize = 1,
+  lhei = c(1,7),
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(8,8),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  dendrogram="none",     # only draw a row dendrogram
+  Colv="none",
+  Rowv = "none")  
+```
+
+
+```{r}
+data.dist <- vegdist(t(abundance.matrix2), method = "bray")
+```
+
+```{r}
+col.clus <- hclust(data.dist)
+```
+
+```{r}
+data.dist.g <- vegdist(abundance.matrix2, method = "bray")
+row.clus <- hclust(data.dist.g)
+```
+
+```{r}
+heatmap.2(as.matrix(abundance.matrix2),
+  main = "Heatmap of SAR11 OTUs", # heat map title
+  xlab = "Samples",
+  ylab = "OTUs",
+  keysize = 1.5,
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(6,6),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  Rowv = as.dendrogram(row.clus),     # only draw a row dendrogram
+  Colv= NA)  
+```
+
+```{r}
+#Euclidean distance with Ward's linkage
+heatmap.2(as.matrix(abundance.matrix2),
+  main = "Heatmap of Cyano OTUs", # heat map title
+  xlab = "Samples",
+  ylab = "OTUs",
+  keysize = 1.5,
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(6,6),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  distfun = function(x) dist(x, method="euclidean"),
+  hclustfun = function(x) hclust(x, method="ward.D2"),
+  Colv = FALSE)
+```
+
+## get top abundant oligotypes
+
+```{r}
+maxab <- apply(abundance.matrix2, 1, max)
+maxab
+```
+
+```{r}
+n1 <- names(which(maxab <  12.765918))
+data.prop.1 <- abundance.matrix2[-which(rownames(abundance.matrix2) %in% n1), ]
+```
+
+
+```{r}
+maxab1 <- apply(data.prop.1, 1, max)
+head(maxab1)
+```
+
+
+```{r}
+heatmap.2(as.matrix(data.prop.1),
+  main = "Heatmap of SAR11 OTUs", # heat map title
+  xlab = "Samples",
+  ylab = "OTUs",
+  keysize = 1.5,
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(6,7),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  dendrogram="row",     # only draw a row dendrogram
+  Colv="NA")  
+```
+
+```{r}
+data.dist <- vegdist(t(abundance.matrix2), method = "bray")
+```
+
+```{r}
+col.clus <- hclust(data.dist)
+```
+
+```{r}
+data.dist.g <- vegdist(data.prop.1, method = "bray")
+row.clus <- hclust(data.dist.g)
+```
+
+```{r}
+heatmap.2(as.matrix(data.prop.1),
+  main = "Heatmap of SAR11 OTUs", # heat map title
+  xlab = "Samples",
+  ylab = "OTUs",
+  keysize = 1.5,
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(6,7),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  Rowv = as.dendrogram(row.clus),     # only draw a row dendrogram
+  Colv="NA")  
+```
+```{r}
+library(phylotools)
+```
+
+```{r}
+res <- read.fasta("~/Downloads/Cyano_OTUs_alignment_Trimmed_DEH21Feb2021.fasta") 
+dat2phylip(res) 
+
+
+```
+
+

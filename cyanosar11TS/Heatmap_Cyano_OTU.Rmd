@@ -1,0 +1,238 @@
+---
+title: "Heatmap_Cyano_OTU"
+author: "Medy Mu"
+date: "1/26/2021"
+output: pdf_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(stats)
+library("RColorBrewer")
+library("gplots")
+library(vegan)
+```
+
+
+```{r}
+cyanobacteria_data <- read.csv("~/Downloads/Cyanobacteria_OTU_with_order.csv")
+environmental_data <- read.csv("~/Downloads/ENvironmental data.csv")
+```
+
+
+```{r}
+abundance.matrix<- cyanobacteria_data[,2:152]
+rownames(abundance.matrix) <- cyanobacteria_data$OUT.ID
+```
+
+```{r}
+abundance.matrix2 <- log2(abundance.matrix+1)
+```
+
+```{r}
+display.brewer.all()
+```
+
+
+
+```{r}
+col <- colorRampPalette(rev(brewer.pal(10, "RdYlBu")))(256)
+```
+
+
+
+```{r, fig.width=20, fig.height=12}
+heatmap.2(as.matrix(abundance.matrix2),
+  main = "Heatmap of Cyano OTUs", # heat map title
+  xlab = "Samples",
+  ylab = "OTUs",
+  cexCol =0.5,
+  cexRow = 0.5,
+  keysize = 1,
+  lhei = c(1,7),
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(8,8),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  dendrogram="row",     # only draw a row dendrogram
+  Colv="NA")  
+```
+
+
+```{r}
+data.dist <- vegdist(t(abundance.matrix2), method = "bray")
+```
+
+```{r}
+col.clus <- hclust(data.dist)
+```
+
+```{r}
+data.dist.g <- vegdist(abundance.matrix2, method = "bray")
+row.clus <- hclust(data.dist.g)
+```
+
+```{r}
+heatmap.2(as.matrix(abundance.matrix2),
+  main = "Heatmap of Cyano OTUs", # heat map title
+  xlab = "Samples",
+  ylab = "OTUs",
+  keysize = 1.5,
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(6,6),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  Rowv = as.dendrogram(row.clus),     # only draw a row dendrogram
+  Colv= NA)  
+```
+
+```{r}
+#Euclidean distance with Ward's linkage
+heatmap.2(as.matrix(abundance.matrix2),
+  main = "Heatmap of Cyano OTUs", # heat map title
+  xlab = "Samples",
+  ylab = "OTUs",
+  keysize = 1.5,
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(6,6),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  distfun = function(x) dist(x, method="euclidean"),
+  hclustfun = function(x) hclust(x, method="ward.D2"),
+  Colv = FALSE)
+```
+
+
+```{r}
+#1 minus Pearson correlation distance with average linkage
+heatmap.2(as.matrix(abundance.matrix2),
+  main = "Heatmap of Cyano OTUs", # heat map title
+  xlab = "Samples",
+  ylab = "OTUs",
+  keysize = 1.5,
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(6,6),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  distfun = function(x) as.dist(1-cor(t(x))),
+  hclustfun = function(x) hclust(x, method="average"),
+  Colv = FALSE)
+```
+
+## get top abundant OTU
+```{r}
+maxab <- apply(abundance.matrix2, 1, max)
+maxab
+```
+
+```{r}
+n1 <- names(which(maxab < 13.98510))
+data.prop.1 <- abundance.matrix2[-which(rownames(abundance.matrix2) %in% n1), ]
+```
+
+
+```{r}
+maxab1 <- apply(data.prop.1, 1, max)
+head(maxab1)
+maxab1
+```
+
+
+```{r}
+heatmap.2(as.matrix(data.prop.1),
+  main = "Heatmap of Cyano OTUs", # heat map title
+  xlab = "Samples",
+  ylab = "OTUs",
+  keysize = 1.5,
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(6,7),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  dendrogram="row",     # only draw a row dendrogram
+  Colv="NA")  
+```
+
+
+
+```{r}
+data.dist <- vegdist(t(abundance.matrix2), method = "bray")
+```
+
+```{r}
+col.clus <- hclust(data.dist)
+```
+
+```{r}
+data.dist.g <- vegdist(data.prop.1, method = "bray")
+row.clus <- hclust(data.dist.g)
+```
+
+```{r}
+heatmap.2(as.matrix(data.prop.1),
+  main = "Heatmap of Cyano OTUs", # heat map title
+  xlab = "Samples",
+  ylab = "OTUs",
+  keysize = 1.5,
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(6,7),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  Rowv = as.dendrogram(row.clus),     # only draw a row dendrogram
+  Colv="NA")  
+```
+
+
+```{r}
+#Euclidean distance with Ward's linkage
+heatmap.2(as.matrix(data.prop.1),
+  main = "Heatmap of Cyano OTUs", # heat map title
+  xlab = "Samples",
+  ylab = "OTUs",
+  keysize = 1.5,
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(6,7),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  distfun = function(x) dist(x, method="euclidean"),
+  hclustfun = function(x) hclust(x, method="ward.D2"),
+  Colv = FALSE)
+```
+
+```{r}
+#1 minus Pearson correlation distance with average linkage
+heatmap.2(as.matrix(data.prop.1),
+  main = "Heatmap of Cyano OTUs", # heat map title
+  xlab = "Samples",
+  ylab = "OTUs",
+  keysize = 1.5,
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(6,7),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  distfun = function(x) as.dist(1-cor(t(x))),
+  hclustfun = function(x) hclust(x, method="average"),
+  Colv = FALSE)
+```
+

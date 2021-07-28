@@ -1,0 +1,190 @@
+---
+title: "Heatmap_Cyano_Oligo"
+author: "Medy Mu"
+date: "1/26/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+library(stats)
+library("RColorBrewer")
+library("gplots")
+library(vegan)
+library(dplyr)
+```
+
+```{r}
+cyanobacteria_data <- read.csv("~/Downloads/cyanobacteria_normalized_oligotypetable.csv")
+environmental_data <- read.csv("~/Downloads/ENvironmental data.csv")
+```
+
+```{r}
+cyanobacteria_data <- cyanobacteria_data%>%
+  filter(taxonomy != "k__Bacteria; p__Cyanobacteria; c__Chloroplast; o__Stramenopiles; f__; g__; s__")
+```
+
+
+```{r}
+cyanobacteria_data %>%
+  count(taxonomy)
+```
+
+```{r}
+abundance.matrix<- cyanobacteria_data[,2:152]
+rownames(abundance.matrix) <- cyanobacteria_data$ASV_ID
+```
+
+```{r}
+abundance.matrix2 <- log2(abundance.matrix +1)
+```
+
+```{r}
+#data.prop <- abundance.matrix2/colSums(abundance.matrix2)
+```
+
+```{r}
+scaleyellowred <- colorRampPalette(c("lightyellow", "red"), space = "rgb")(100)
+```
+
+```{r}
+col <- colorRampPalette(rev(brewer.pal(10, "RdYlBu")))(256)
+```
+
+```{r}
+pdf(file ="~/Downloads/rrplot",
+    width = 20,
+    height = 20)
+```
+
+```{r}
+heatmap.2(as.matrix(abundance.matrix2),
+  main = "Heatmap of Cyano Oligotypes", # heat map title
+  xlab = "Samples",
+  ylab = "Oligotypes",
+  cexCol =0.5,
+  keysize = 1,
+  lhei = c(1,7),
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(8,8),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  dendrogram="row",     # only draw a row dendrogram
+  Colv="NA")  
+```
+
+```{r}
+dev.off()
+```
+
+```{r}
+order_data <- read.csv("~/Downloads/cyano_oligotypes_mean_order_25March2021.csv")
+```
+
+```{r}
+abundance.matrix<- order_data[,2:152]
+rownames(abundance.matrix) <- order_data$ASV_ID
+```
+
+```{r}
+abundance.matrix2 <- log2(abundance.matrix +1)
+```
+
+```{r}
+write.csv(abundance.matrix2, "cyano_oligotypes_neworder.csv")
+```
+
+```{r}
+heatmap.2(as.matrix(abundance.matrix2),
+  main = "Heatmap of Cyanobateria Oligotypes", # heat map title
+  xlab = "Samples",
+  ylab = "Oligotypes",
+  cexCol =0.5,
+  cexRow = 0.5,
+  keysize = 1,
+  lhei = c(1,7),
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(8,8),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  dendrogram="none",     # only draw a row dendrogram
+  Colv="none",
+  Rowv = "none")  
+```
+
+```{r}
+data.dist <- vegdist(t(abundance.matrix2), method = "bray")
+```
+
+```{r}
+col.clus <- hclust(data.dist)
+```
+
+```{r}
+data.dist.g <- vegdist(abundance.matrix2, method = "bray")
+row.clus <- hclust(data.dist.g)
+```
+
+```{r}
+heatmap.2(as.matrix(abundance.matrix2),
+  main = "Heatmap of Cyano OTUs", # heat map title
+  xlab = "Samples",
+  ylab = "OTUs",
+  keysize = 1.5,
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(6,6),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  Rowv = as.dendrogram(row.clus),     # only draw a row dendrogram
+  Colv= NA)  
+```
+
+## get top abundant oligotypes
+
+```{r}
+meanab <- apply(abundance.matrix2, 1, mean)
+meanab
+```
+
+```{r}
+n1 <- names(which(meanab < 3.8639082 ))
+data.prop.1 <- abundance.matrix2[-which(rownames(abundance.matrix2) %in% n1), ]
+```
+
+
+```{r}
+#maxab1 <- apply(data.prop.1, 1, max)
+#maxab1
+```
+
+
+```{r}
+heatmap.2(as.matrix(data.prop.1),
+  main = "Heatmap of Cyano Oligotypes", # heat map title
+  xlab = "Samples",
+  ylab = "Oligotypes",
+  cexCol =0.5,
+  cexRow = 0.5,
+  keysize = 1,
+  lhei = c(1,7),
+  key.xlab = "Log2 (abs abundance)",
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(6,7),     # widens margins around plot
+  col=col,       # use on color palette defined earlier
+  dendrogram="none",     # only draw a row dendrogram
+  Colv="NA")  
+```
+
+```{r}
+rownames(data.prop.1)
+```
+
